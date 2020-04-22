@@ -1,24 +1,29 @@
-clear;clc;
+clear;clc;hold off;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 nodes = [
-    0,0;
-    6,0;
-    3,4
+    4, 0;
+    4, 3;
+    0, 3;
+    0, 0
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
-elements = [1 1 2;
-            2 3 3]; % each column represents an element, from node a to node b
+elements = [1 1 2 2 3;
+            2 4 4 3 4]; % each column represents an element, from node a to node b
+
+SupportTypesOnNodes = [0; 0; 2; 2]; % a vector that indicates how many unknown forces on each node respectively
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-SupportTypesOnNodes = [2; 1; 0]; % a vector that indicates how many unknown forces on each node respectively
-
-ExF = [80, 0, 3, 4
+ExF = [
+       0, -6, 4, 0;
        ]; % each row: [Fx,Fy,x,y]
 
 ExM = [0, 0, 0]; % [mag, x, y]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if size(elements,2)*3 < sum(SupportTypesOnNodes)
     disp('Structure indeterminante!')
@@ -93,17 +98,24 @@ for i=1:length(ExM(:,1))
     F_sol = F_sol + double(cat(1,sol{:}));
 end
 
-n_0_ind = find(F~=0);
-for i=1:size(n_0_ind)
-    disp([char(F(n_0_ind(i))), string(F_sol(i))])
+FF=F';
+n_0_ind = find(FF~=0);
+FF(n_0_ind) = F_sol;
+F_res = FF';
+c=1;
+for i=1:size(F, 1)
+    for j=1:size(F, 2)
+        if F(i,j) ~=0
+            disp([char(F(i,j)), string(F_sol(c))]);
+            c = c+1;
+        end
+    end
 end
     
 
-F(n_0_ind)=F_sol;
-F = double(F);
 
 gen_fig(nodes, elements, SupportTypesOnNodes)
-total_F = [ExF; [F(:,1:2) nodes]]; % this is the final thing that is interested
+total_F = [ExF; [F_res(:,1:2) nodes]]; % this is the final thing that is interested
 draw_loads(total_F, ExM)
 
 
@@ -123,22 +135,20 @@ for i=1:size(nodes,1)
     
     % find the external forces that exert on this node, return the indes of
     % node(s)
-    ExF_ind = find(abs(total_F(:,3)-node_x)<1e-10 &...
-                abs(total_F(:,4)-node_y)<1e-10 &...
-                total_F(:,1).^2+total_F(:,2).^2 > 1e-10); % magnitude > 0
+    ExF_ind = find(abs(total_F(:,3)-node_x)<1e-10 & abs(total_F(:,4)-node_y)<1e-10);
             
     ExF = total_F(ExF_ind, :);
-    ExF = ExF(:, 1:2);
+    ExF = sum(ExF(:, 1:2), 1);
     
     % find the elements on this node (OTN), return the column index of matrix 
     % "elements"
     out = find(elements(1, :)==i);
     out = [out; ones(1, length(out))];
-    elements_ONT_out = [elements(:, out(1, :)); ones(size(out, 2))]; % the third row=1 means it points out
+    elements_ONT_out = [elements(:, out(1, :)); ones(1, size(out, 2))]; % the third row=1 means it points out
     
     in = find(elements(2, :)==i);
     in = [in; -ones(1, length(in))];
-    elements_ONT_in = [elements(:, in(1, :)); -ones(size(in, 2))]; % the third row=-1 means it points in
+    elements_ONT_in = [elements(:, in(1, :)); -ones(1, size(in, 2))]; % the third row=-1 means it points in
     
     elements_ONT = [elements_ONT_out, elements_ONT_in]; % each column: from node, to node
     
