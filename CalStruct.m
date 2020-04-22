@@ -1,21 +1,24 @@
-clear
+clear;clc;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% below is the overall structure
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 nodes = [
     0,0;
-    10,5;
-    10,0
+    6,0;
+    3,4
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
 elements = [1 1 2;
-            2 3 3]; % each column represents an element
+            2 3 3]; % each column represents an element, from node a to node b
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-SupportTypesOnNodes = [2; 0; 1]; % a vector that indicates how many unknown forces on each node respectively
+SupportTypesOnNodes = [2; 1; 0]; % a vector that indicates how many unknown forces on each node respectively
 
-ExF = [0, -10, 10, 5;
-       0, 5, 5, 2.5;
-       0, -10, 5, 0
-       ]; % external forces, first column is Fx, second is Fy, third and forth are the position
+ExF = [80, 0, 3, 4
+       ]; % each row: [Fx,Fy,x,y]
 
-ExM = [-10, 0, 0]; % [mag, x, y]
+ExM = [0, 0, 0]; % [mag, x, y]
 
 if size(elements,2)*3 < sum(SupportTypesOnNodes)
     disp('Structure indeterminante!')
@@ -100,8 +103,93 @@ F(n_0_ind)=F_sol;
 F = double(F);
 
 gen_fig(nodes, elements, SupportTypesOnNodes)
-total_F = [ExF; [F(:,1:2) nodes]];
+total_F = [ExF; [F(:,1:2) nodes]]; % this is the final thing that is interested
 draw_loads(total_F, ExM)
+
+
+syms F_internal [size(elements, 2), size(elements, 2)] % #internal forces equals # elements
+
+EqnSet = [];
+ele_mat = zeros(size(elements, 2), size(elements, 2));
+for i=1:size(elements, 2)
+    ele_mat(elements(1,i), elements(2,i)) = 1;
+end
+
+F_internal = F_internal.*ele_mat;
+
+for i=1:size(nodes,1)
+    node_x = nodes(i,1);
+    node_y = nodes(i,2);
+    
+    % find the external forces that exert on this node, return the indes of
+    % node(s)
+    ExF_ind = find(abs(total_F(:,3)-node_x)<1e-10 &...
+                abs(total_F(:,4)-node_y)<1e-10 &...
+                total_F(:,1).^2+total_F(:,2).^2 > 1e-10); % magnitude > 0
+            
+    ExF = total_F(ExF_ind, :);
+    ExF = ExF(:, 1:2);
+    
+    % find the elements on this node (OTN), return the column index of matrix 
+    % "elements"
+    out = find(elements(1, :)==i);
+    out = [out; ones(1, length(out))];
+    elements_ONT_out = [elements(:, out(1, :)); ones(size(out, 2))]; % the third row=1 means it points out
+    
+    in = find(elements(2, :)==i);
+    in = [in; -ones(1, length(in))];
+    elements_ONT_in = [elements(:, in(1, :)); -ones(size(in, 2))]; % the third row=-1 means it points in
+    
+    elements_ONT = [elements_ONT_out, elements_ONT_in]; % each column: from node, to node
+    
+    % F_internal_ONT: each row: Fx, Fy
+    syms F_internal_ONT [0,0]
+    for j = 1:size(elements_ONT, 2)
+        F_internal_ONT(j, :) = elements_ONT(3,j) * ... % mean out/in
+                                (nodes(elements_ONT(2,j), :) - nodes(elements_ONT(1,j), :))... % direction
+                                /norm((nodes(elements_ONT(2,j), :) - nodes(elements_ONT(1,j), :))) * ... % normalization
+                                F_internal(elements_ONT(1,j), elements_ONT(2,j));
+    end
+        
+    % Fx = 0, Fy = 0
+    newEqn = sum(F_internal_ONT, 1)+ExF==[0,0];
+    EqnSet = [EqnSet; newEqn(:)];
+end
+
+sol = struct2cell(solve(EqnSet));
+sol = double(cat(1,sol{:}));
+
+F_internal_result = zeros(size(F_internal));
+c=1;
+for i=1:size(F_internal_result,1)
+    for j=1:size(F_internal_result,2)
+        if F_internal(i,j)==0
+            continue
+        else
+            TorC = '';
+            if sol(c)>0
+                TorC = 'Tension';
+            elseif sol(c)<0
+                TorC = 'Compression';
+            else
+                TorC = 'zero';
+            end
+            
+            disp([char(F_internal(i,j)), string(sol(c)), TorC]);
+            F_internal_result(i,j) = sol(c);
+            c = c+1;
+        end
+    end
+end
+
+
+
+
+
+
+
+
+
 
 
 function gen_fig(nodes, elements, SupportTypesOnNodes)
@@ -146,22 +234,24 @@ function draw_loads(total_F, ExM)
             Mo = cross([total_F(i, 3:4) 0], [total_F(i, 1:2) 0]);
             
             if Mo(3)<0
-                plot([min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F):.01:...
-                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F)],...
-                    [min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F): .01 :...
-                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F)], 'g.')
+                plot(linspace(min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),...
+                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),50),...
+                    linspace(min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),...
+                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),50), 'g.')
                 plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'g', 'MarkerSize', 7, 'MarkerFaceColor', 'green')
             elseif Mo(3)>=0
-                plot([min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F):.01:...
-                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F)],...
-                    [min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F): .01 :...
-                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F)], 'r.')
+                plot(linspace(min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),...
+                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),50),...
+                    linspace(min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),...
+                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),50), 'r.')
                 plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'r', 'MarkerSize', 7, 'MarkerFaceColor', 'red')
             end
         end
     end
     
 end
+
+
 
 
 
