@@ -3,22 +3,23 @@ clear;clc;hold off;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+if_internal = 0;
 nodes = [
-    4, 0;
-    4, 3;
-    0, 3;
-    0, 0
+    0, 0;
+    6, 6;
+    10,6
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
-elements = [1 1 2 2;
-            2 4 4 3]; % each column represents an element, from node a to node b
+elements = [1 2;
+            2 3]; % each column represents an element, from node a to node b
 
-SupportTypesOnNodes = [0; 0; 2; 2]; % a vector that indicates how many unknown forces on each node respectively
+SupportTypesOnNodes = [1; 0; 2]; % a vector that indicates how many unknown forces on each node respectively
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% External loads
 ExF = [
-       0, -6, 4, 0;
+       20, 0, 3, 3;
+       0, -16, 8, 6
        ]; % each row: [Fx,Fy,x,y]
 
 ExM = [0, 0, 0]; % [mag, x, y]
@@ -64,7 +65,7 @@ for k=1:size(F_react,1)
     Mo = Mo + cross([nodes(k,:) 0], [F_react(k,1:2) 0]);
 end
 
-F_react_EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
+EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
 
 % sol = struct2cell(solve([ Fx == 0; Fy == 0; Mo(3) == 0]));
 % F_sol = F_sol + double(cat(1,sol{:}));
@@ -73,7 +74,6 @@ F_react_EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
 %% calculate internal forces
 syms F_internal [size(nodes, 1), size(nodes, 1)] 
 
-EqnSet = [];
 ele_mat = zeros(size(nodes, 1), size(nodes, 1));
 for i=1:size(elements, 2)
     ele_mat(elements(1,i), elements(2,i)) = 1;
@@ -84,6 +84,7 @@ F_internal = F_internal.*ele_mat;
 
 total_F = [ExF; F_react(:, 1:2), nodes];
 
+EqnSet_int = [];
 for i=1:size(nodes,1)
     node_x = nodes(i,1);
     node_y = nodes(i,2);
@@ -118,11 +119,13 @@ for i=1:size(nodes,1)
         
     % Fx = 0, Fy = 0
     newEqn = sum(F_internal_ONT, 1)+ExF_t==[0,0];
-    EqnSet = [EqnSet; newEqn(:)];
+    EqnSet_int = [EqnSet_int; newEqn(:)];
 end
 
-EqnSet = [EqnSet; F_react_EqnSet];
-
+if if_internal == 1
+    EqnSet = [EqnSet; EqnSet_int];
+end
+    
 s = solve(EqnSet);
 F_name = fieldnames(s);
 sol = struct2cell(s);
@@ -144,18 +147,21 @@ end
 
 
 %% fill solution into force matrices (internal and reaction)
-
-NumOfIntF = length(F_internal(F_internal~=0)); % number of internal forces
-IntF_n_0_ind = find(F_internal'~=0); % index of nonzero forces in matrix "F_internal"
+NumOfIntF = 0;
+if if_internal == 1
+    NumOfIntF = length(F_internal(F_internal~=0)); % number of internal forces
+    IntF_n_0_ind = find(F_internal'~=0); % index of nonzero forces in matrix "F_internal"
+    F_internal_res = zeros(size(F_internal'));
+    for i=1:NumOfIntF
+        F_internal_res(IntF_n_0_ind(i)) = sol(i);
+    end
+    F_internal_res = F_internal_res';
+end
 F_react_f = F_react(:, 1:2);% matrix of reaction forces
 NumOfReactF = length(F_react_f(F_react_f~=0));% number of reaction forces
 reactF_n_0_ind = find(F_react_f'~=0); % index of nonzero forces in matrix "F_react_f"
 
-F_internal_res = zeros(size(F_internal'));
-for i=1:NumOfIntF
-    F_internal_res(IntF_n_0_ind(i)) = sol(i);
-end
-F_internal_res = F_internal_res';
+
 
 F_react_f_res = zeros(size(F_react_f'));
 for i=1:NumOfReactF
