@@ -1,7 +1,7 @@
 clear;clc;hold off;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% below is the overall structure
+%% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 nodes = [
     4, 0;
@@ -10,13 +10,13 @@ nodes = [
     0, 0
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
-elements = [1 1 2 2 3;
-            2 4 4 3 4]; % each column represents an element, from node a to node b
+elements = [1 1 2 2;
+            2 4 4 3]; % each column represents an element, from node a to node b
 
 SupportTypesOnNodes = [0; 0; 2; 2]; % a vector that indicates how many unknown forces on each node respectively
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+%% External loads
 ExF = [
        0, -6, 4, 0;
        ]; % each row: [Fx,Fy,x,y]
@@ -30,115 +30,70 @@ if size(elements,2)*3 < sum(SupportTypesOnNodes)
     return
 end
 
+%% Calculate reaction forces
 F_sol = zeros(sum(SupportTypesOnNodes),1);
 
-% reaction due to concentrate forces
-for i=1:length(ExF(:,1))
     
-    % create unknown variables of reaction forces on each nodes
-    syms F [length(SupportTypesOnNodes) 3] % each row cooresponds a node
-    
-    % release free degrees
-    for j=1:length(SupportTypesOnNodes)
-        if SupportTypesOnNodes(j)==1
-            F(j,1)=0;
-            F(j,3)=0;
-        elseif SupportTypesOnNodes(j)==2
-            F(j,3)=0;
-        elseif SupportTypesOnNodes(j)==0
-            F(j,1)=0;
-            F(j,2)=0;
-            F(j,3)=0;
-        end
+% create unknown variables of reaction forces on each nodes
+syms F_react [length(SupportTypesOnNodes) 3] % each row cooresponds a node
+
+% release free degrees
+for j=1:length(SupportTypesOnNodes)
+    if SupportTypesOnNodes(j)==1
+        F_react(j,1)=0;
+        F_react(j,3)=0;
+    elseif SupportTypesOnNodes(j)==2
+        F_react(j,3)=0;
+    elseif SupportTypesOnNodes(j)==0
+        F_react(j,1)=0;
+        F_react(j,2)=0;
+        F_react(j,3)=0;
     end
+end
     
     
-    Fx = sum(F(:,1)) + ExF(i,1);
-    Fy = sum(F(:,2)) + ExF(i,2);
-    
+Fx = sum(F_react(:,1)) + sum(ExF(:,1));
+Fy = sum(F_react(:,2)) + sum(ExF(:,2));
+
+Mo = sum(ExM(:, 1), 1);
+for i=size(ExF, 1)
     Mo = cross([ExF(i, 3:4) 0], [ExF(i, 1:2) 0]);
-    for k=1:size(F,1)
-        Mo = Mo + cross([nodes(k,:) 0], [F(k,1:2) 0]);
-    end
-    sol = struct2cell(solve([ Fx == 0; Fy == 0; Mo(3) == 0]));
-    F_sol = F_sol + double(cat(1,sol{:}));
 end
 
-
-% reaction due to moments
-for i=1:length(ExM(:,1))
-    
-    % create unknown variables of reaction forces on each nodes
-    syms F [length(SupportTypesOnNodes) 3] 
-    
-    % release free degrees
-    for j=1:length(SupportTypesOnNodes)
-        if SupportTypesOnNodes(j)==1
-            F(j,1)=0;
-            F(j,3)=0;
-        elseif SupportTypesOnNodes(j)==2
-            F(j,3)=0;
-        elseif SupportTypesOnNodes(j)==0
-            F(j,1)=0;
-            F(j,2)=0;
-            F(j,3)=0;
-        end
-    end
-    
-    
-    Fx = sum(F(:,1));
-    Fy = sum(F(:,2));
-    Mo = [0, 0, ExM(i,1)];
-    for j = 1:length(size(ExF,1))
-        for k=1:size(F,1)
-            Mo = Mo + cross([nodes(k,:) 0], [F(k,1:2) 0]);
-        end
-    end
-    sol = struct2cell(solve([ Fx == 0; Fy == 0; Mo(3) == 0]));
-    F_sol = F_sol + double(cat(1,sol{:}));
+for k=1:size(F_react,1)
+    Mo = Mo + cross([nodes(k,:) 0], [F_react(k,1:2) 0]);
 end
 
-FF=F';
-n_0_ind = find(FF~=0);
-FF(n_0_ind) = F_sol;
-F_res = FF';
-c=1;
-for i=1:size(F, 1)
-    for j=1:size(F, 2)
-        if F(i,j) ~=0
-            disp([char(F(i,j)), string(F_sol(c))]);
-            c = c+1;
-        end
-    end
-end
-    
+F_react_EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
+
+% sol = struct2cell(solve([ Fx == 0; Fy == 0; Mo(3) == 0]));
+% F_sol = F_sol + double(cat(1,sol{:}));
 
 
-gen_fig(nodes, elements, SupportTypesOnNodes)
-total_F = [ExF; [F_res(:,1:2) nodes]]; % this is the final thing that is interested
-draw_loads(total_F, ExM)
-
-
-syms F_internal [size(elements, 2), size(elements, 2)] % #internal forces equals # elements
+%% calculate internal forces
+syms F_internal [size(nodes, 1), size(nodes, 1)] 
 
 EqnSet = [];
-ele_mat = zeros(size(elements, 2), size(elements, 2));
+ele_mat = zeros(size(nodes, 1), size(nodes, 1));
 for i=1:size(elements, 2)
     ele_mat(elements(1,i), elements(2,i)) = 1;
 end
 
+% #internal forces equals # elements, from node c(column) to node r (row)
 F_internal = F_internal.*ele_mat;
+
+total_F = [ExF; F_react(:, 1:2), nodes];
 
 for i=1:size(nodes,1)
     node_x = nodes(i,1);
     node_y = nodes(i,2);
     
-    % find the external forces that exert on this node, return the indes of
-    % node(s)
+    % find the external forces (include reaction forces) that exert on 
+    % this node, return the index of node(s)
     ExF_ind = find(abs(total_F(:,3)-node_x)<1e-10 & abs(total_F(:,4)-node_y)<1e-10);
             
-    ExF = total_F(ExF_ind, :);
-    ExF = sum(ExF(:, 1:2), 1);
+    ExF_t = total_F(ExF_ind, :);
+    ExF_t = sum(ExF_t(:, 1:2), 1);
     
     % find the elements on this node (OTN), return the column index of matrix 
     % "elements"
@@ -162,37 +117,59 @@ for i=1:size(nodes,1)
     end
         
     % Fx = 0, Fy = 0
-    newEqn = sum(F_internal_ONT, 1)+ExF==[0,0];
+    newEqn = sum(F_internal_ONT, 1)+ExF_t==[0,0];
     EqnSet = [EqnSet; newEqn(:)];
 end
 
-sol = struct2cell(solve(EqnSet));
+EqnSet = [EqnSet; F_react_EqnSet];
+
+s = solve(EqnSet);
+F_name = fieldnames(s);
+sol = struct2cell(s);
 sol = double(cat(1,sol{:}));
 
-F_internal_result = zeros(size(F_internal));
-c=1;
-for i=1:size(F_internal_result,1)
-    for j=1:size(F_internal_result,2)
-        if F_internal(i,j)==0
-            continue
-        else
-            TorC = '';
-            if sol(c)>0
-                TorC = 'Tension';
-            elseif sol(c)<0
-                TorC = 'Compression';
-            else
-                TorC = 'zero';
-            end
-            
-            disp([char(F_internal(i,j)), string(sol(c)), TorC]);
-            F_internal_result(i,j) = sol(c);
-            c = c+1;
-        end
+
+%% display forces in command line
+for i=1:size(sol,1)
+    if sol(i)>0
+        TorC = 'Tension';
+    elseif sol(i)<0
+        TorC = 'Compression';
+    else
+        TorC = 'zero';
     end
+
+    disp([F_name{i}, string(sol(i)), TorC]);
 end
 
 
+%% fill solution into force matrices (internal and reaction)
+
+NumOfIntF = length(F_internal(F_internal~=0)); % number of internal forces
+IntF_n_0_ind = find(F_internal'~=0); % index of nonzero forces in matrix "F_internal"
+F_react_f = F_react(:, 1:2);% matrix of reaction forces
+NumOfReactF = length(F_react_f(F_react_f~=0));% number of reaction forces
+reactF_n_0_ind = find(F_react_f'~=0); % index of nonzero forces in matrix "F_react_f"
+
+F_internal_res = zeros(size(F_internal'));
+for i=1:NumOfIntF
+    F_internal_res(IntF_n_0_ind(i)) = sol(i);
+end
+F_internal_res = F_internal_res';
+
+F_react_f_res = zeros(size(F_react_f'));
+for i=1:NumOfReactF
+    F_react_f_res(reactF_n_0_ind(i)) = sol(i+NumOfIntF);
+end
+F_react_f_res = F_react_f_res';
+
+
+%% draw force illustration
+F_react = [F_react_f_res, nodes];
+total_F = [ExF; F_react];
+
+gen_fig(nodes, elements, SupportTypesOnNodes)
+draw_loads(total_F, ExM)
 
 
 
@@ -200,8 +177,7 @@ end
 
 
 
-
-
+%% functions
 function gen_fig(nodes, elements, SupportTypesOnNodes)
     hold on
     for i=1:size(nodes, 1)
