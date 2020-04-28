@@ -3,23 +3,54 @@ clear;clc;hold off;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if_internal = 0;
+if_internal = 1;
 nodes = [
-    0, 0;
-    6, 6;
-    10,6
+    0 0;
+    3 1;
+    6 2;
+    9 3;
+    12 3;
+    12 0;
+    12 -3;
+    12 -6;
+    9 -6;
+    9 -3;
+    9 0;
+    6 0;
+    3 0
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
 elements = [1 2;
-            2 3]; % each column represents an element, from node a to node b
+            2 3;
+            3 4;
+            4 5;
+            5 6;
+            6 7;
+            7 8;
+            8 9;
+            9 10;
+            10 11;
+            11 12;
+            12 13;
+            13 1;
+            2 13;
+            2 12;
+            3 12;
+            4 12;
+            4 11;
+            4 6;
+            6 10;
+            6 11;
+            7 10;
+            8 10;
+            ]'; % each ![row]! represents an element, from node a to node b
 
-SupportTypesOnNodes = [1; 0; 2]; % a vector that indicates how many unknown forces on each node respectively
+SupportTypesOnNodes = [0; 0; 0;0;0;0;0;1;2;0;0;0;0]; % a vector that indicates how many unknown forces on each node respectively
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% External loads
 ExF = [
-       20, 0, 3, 3;
-       0, -16, 8, 6
+       0, -60, 3, 1
        ]; % each row: [Fx,Fy,x,y]
 
 ExM = [0, 0, 0]; % [mag, x, y]
@@ -150,31 +181,40 @@ end
 NumOfIntF = 0;
 if if_internal == 1
     NumOfIntF = length(F_internal(F_internal~=0)); % number of internal forces
-    IntF_n_0_ind = find(F_internal'~=0); % index of nonzero forces in matrix "F_internal"
     F_internal_res = zeros(size(F_internal'));
     for i=1:NumOfIntF
-        F_internal_res(IntF_n_0_ind(i)) = sol(i);
+        F_name_this = F_name{i};
+        a_ind = strfind(F_name_this, 'l'); % index of 'l'
+        b_ind = strfind(F_name_this, '_'); % index of '_'
+        b_ind = b_ind(2);
+        from = str2double(F_name_this(a_ind+1:b_ind-1));
+        to = str2double(F_name_this(b_ind+1:length(F_name_this)));
+        F_internal_res(from, to) = sol(i);
     end
-    F_internal_res = F_internal_res';
+    
 end
 F_react_f = F_react(:, 1:2);% matrix of reaction forces
 NumOfReactF = length(F_react_f(F_react_f~=0));% number of reaction forces
-reactF_n_0_ind = find(F_react_f'~=0); % index of nonzero forces in matrix "F_react_f"
 
 
-
-F_react_f_res = zeros(size(F_react_f'));
+F_react_f_res = zeros(size(F_react_f));
 for i=1:NumOfReactF
-    F_react_f_res(reactF_n_0_ind(i)) = sol(i+NumOfIntF);
+    F_name_this = F_name{i+NumOfIntF};
+    a_ind = strfind(F_name_this, 't'); % index of 't'
+    b_ind = strfind(F_name_this, '_'); % index of '_'
+    b_ind = b_ind(2);
+    from = str2double(F_name_this(a_ind+1:b_ind-1));
+    to = str2double(F_name_this(b_ind+1:length(F_name_this)));
+    F_react_f_res(from, to) = sol(i+NumOfIntF);
 end
-F_react_f_res = F_react_f_res';
+
 
 
 %% draw force illustration
 F_react = [F_react_f_res, nodes];
 total_F = [ExF; F_react];
 
-gen_fig(nodes, elements, SupportTypesOnNodes)
+gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
 draw_loads(total_F, ExM)
 
 
@@ -184,8 +224,11 @@ draw_loads(total_F, ExM)
 
 
 %% functions
-function gen_fig(nodes, elements, SupportTypesOnNodes)
+function gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
     hold on
+    xlim([-2, 2 + max(nodes(:,1))])
+    ylim([-2 + min(nodes(:,2)), 2 + max(nodes(:,2))])
+    grid on
     for i=1:size(nodes, 1)
         if SupportTypesOnNodes(i)==2
             plot(nodes(i,1), nodes(i,2), 'Marker', '^', 'MarkerFaceColor', 'black', 'MarkerSize', 10)
@@ -193,14 +236,20 @@ function gen_fig(nodes, elements, SupportTypesOnNodes)
             plot(nodes(i,1), nodes(i,2), 'Marker', 'o', 'MarkerFaceColor', 'black', 'MarkerSize', 10)
         end
     end
-    
+    max_mag = max(F_internal_res(:));
     for i=1:size(elements, 2)
-        plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'b' ) % plot each element
+        from = min(elements(1, i), elements(2, i));
+        to = max(elements(1, i), elements(2, i));
+        lw = 10*abs(F_internal_res(from, to)/max_mag); % linewidth
+        if F_internal_res(from, to) > 0
+            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'blue', 'LineWidth', lw) % plot, tension
+        elseif F_internal_res(from, to) < 0
+            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'red', 'LineWidth', lw) % plot, tension
+        else
+            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'green') % plot, tension
+        end
     end
-    
-    xlim([-2, 2 + max(nodes(:,1))])
-    ylim([-2 + min(nodes(:,2)), 2 + max(nodes(:,2))])
-    grid on
+
 end
 
 function draw_loads(total_F, ExM)
