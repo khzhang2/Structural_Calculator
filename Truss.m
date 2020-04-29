@@ -81,12 +81,12 @@ Fx = sum(F_react(:,1)) + sum(ExF(:,1));
 Fy = sum(F_react(:,2)) + sum(ExF(:,2));
 
 Mo = sum(ExM(:, 1), 1);
-for i=size(ExF, 1)
-    Mo = cross([ExF(i, 3:4) 0], [ExF(i, 1:2) 0]);
+for i=1:size(ExF, 1)
+    Mo = Mo + cross([ExF(i, 3:4) 0], [ExF(i, 1:2) 0]);
 end
 
 for k=1:size(F_react,1)
-    Mo = Mo + cross([nodes(k,:) 0], [F_react(k,1:2) 0]);
+    Mo = Mo + cross([nodes(k,:) 0], [F_react(k,1:2) 0]) + F_react(k, 3);
 end
 
 EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
@@ -155,7 +155,7 @@ try
     F_name = fieldnames(s);
     sol = struct2cell(s);
     sol = double(cat(1,sol{:}));
-    sol(1)==sol(1)
+    sol(1) == sol(1);
 catch
     s = solve(EqnSet_int);
     F_name = fieldnames(s);
@@ -175,8 +175,12 @@ for i=1:size(sol,1)
     else
         TorC = 'zero';
     end
-
-    disp([F_name{i}, string(sol(i)), TorC]);
+    F_name_this = F_name{i};
+    if F_name_this(length(F_name_this)) == '3'
+        F_name_this = [F_name_this(1:length(F_name_this)-1) 'M'];
+        TorC = 'Moment';
+    end
+    disp([F_name_this, string(sol(i)), TorC]);
 end
 
 
@@ -184,7 +188,7 @@ end
 NumOfIntF = 0;
 if if_internal == 1
     NumOfIntF = length(F_internal(F_internal~=0)); % number of internal forces
-    F_internal_res = zeros(size(F_internal'));
+    F_internal_res = zeros(size(F_internal));
     for i=1:NumOfIntF
         F_name_this = F_name{i};
         a_ind = strfind(F_name_this, 'l'); % index of 'l'
@@ -194,31 +198,40 @@ if if_internal == 1
         to = str2double(F_name_this(b_ind+1:length(F_name_this)));
         F_internal_res(from, to) = sol(i);
     end
-    
+else
+    F_internal_res = ones(size(F_internal));
 end
-F_react_f = F_react(:, 1:2);% matrix of reaction forces
-NumOfReactF = length(F_react_f(F_react_f~=0));% number of reaction forces
+F_react_f = F_react(:, 1:2); % matrix of reaction forces
+react_M = F_react(:, 3); % matrix of reaction moments
+NumOfReactF = length(F_react_f(F_react_f~=0)) + length(react_M(react_M~=0));% number of reaction forces
 
 
 F_react_f_res = zeros(size(F_react_f));
+react_M_res = zeros(size(react_M));
 for i=1:NumOfReactF
     F_name_this = F_name{i+NumOfIntF};
     a_ind = strfind(F_name_this, 't'); % index of 't'
     b_ind = strfind(F_name_this, '_'); % index of '_'
     b_ind = b_ind(2);
-    from = str2double(F_name_this(a_ind+1:b_ind-1));
-    to = str2double(F_name_this(b_ind+1:length(F_name_this)));
-    F_react_f_res(from, to) = sol(i+NumOfIntF);
+    node = str2double(F_name_this(a_ind+1:b_ind-1));
+    dir = str2double(F_name_this(b_ind+1:length(F_name_this))); % reaction force direction
+    if dir ~= 3
+        F_react_f_res(node, dir) = sol(i+NumOfIntF);
+    elseif dir == 3
+        react_M_res(node) = sol(i+NumOfIntF);
+    end
 end
 
 
 
 %% draw force illustration
 F_react = [F_react_f_res, nodes];
+react_M = [react_M_res, nodes];
 total_F = [ExF; F_react];
+total_M = [ExM; react_M];
 
 gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
-draw_loads(total_F, ExM)
+draw_loads(total_F, total_M)
 
 
 
@@ -256,15 +269,15 @@ function gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
     end
 end
 
-function draw_loads(total_F, ExM)
-    M_mag = abs(ExM(:,1));
+function draw_loads(total_F, total_M)
+    M_mag = abs(total_M(:,1));
     if sum(M_mag) > 1e-5
         max_M = max(M_mag);
-        for i=size(ExM,1)
-            if ExM(i,1)<=0
-                plot(ExM(i,2),ExM(i,3), 'Marker', 'x', 'Color', 'g', 'MarkerSize', 20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
-            elseif ExM(i,1)>0
-                plot(ExM(i,2),ExM(i,3), 'Marker', 'o', 'Color', 'r', 'MarkerSize', 20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
+        for i=1:size(total_M,1)
+            if total_M(i,1)<0
+                plot(total_M(i,2),total_M(i,3), 'Marker', 'x', 'Color', 'g', 'MarkerSize', 10+20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
+            elseif total_M(i,1)>0
+                plot(total_M(i,2),total_M(i,3), 'Marker', 'o', 'Color', 'r', 'MarkerSize', 10+20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
             end
         end
     end
