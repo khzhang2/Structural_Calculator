@@ -166,24 +166,6 @@ end
 
 
 
-%% display forces in command line
-for i=1:size(sol,1)
-    if sol(i)>0
-        TorC = 'Tension';
-    elseif sol(i)<0
-        TorC = 'Compression';
-    else
-        TorC = 'zero';
-    end
-    F_name_this = F_name{i};
-    if F_name_this(length(F_name_this)) == '3'
-        F_name_this = [F_name_this(1:length(F_name_this)-1) 'M'];
-        TorC = 'Moment';
-    end
-    disp([F_name_this, string(sol(i)), TorC]);
-end
-
-
 %% fill solution into force matrices (internal and reaction)
 NumOfIntF = 0;
 if if_internal == 1
@@ -220,6 +202,25 @@ for i=1:NumOfReactF
     elseif dir == 3
         react_M_res(node) = sol(i+NumOfIntF);
     end
+end
+
+
+
+%% display forces in command line
+for i=1:size(sol,1)
+    if sol(i)>0
+        TorC = 'Tension';
+    elseif sol(i)<0
+        TorC = 'Compression';
+    else
+        TorC = 'zero';
+    end
+    F_name_this = F_name{i};
+    if F_name_this(length(F_name_this)) == '3' && i > NumOfIntF
+        F_name_this = [F_name_this(1:length(F_name_this)-1) 'M'];
+        TorC = 'Moment';
+    end
+    disp([F_name_this, string(sol(i)), TorC]);
 end
 
 
