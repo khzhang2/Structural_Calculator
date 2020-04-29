@@ -3,47 +3,24 @@ clear;clc;hold off;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if_internal = 1;
+if_internal = 0;
 nodes = [
     0 0;
-    12 0;
-    12 16;
-    12 25;
-    0 34;
-    -12 34;
-    -24 34;
-    -12 25;
-    0 25;
-    0 16
+    5*sqrt(2) 5*sqrt(2);
+    5*sqrt(2)+6 5*sqrt(2)
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
-elements = [1 2;
-            2 3;
-            3 4;
-            4 5;
-            5 6;
-            6 7;
-            7 8;
-            8 9;
-            9 10;
-            10 1;
-            2 10;
-            3 10;
-            4 10;
-            4 9;
-            5 9;
-            5 8;
-            6 8
+elements = [
+            1 2;
+            2 3
             ]'; % each ![row]! represents an element, from node a to node b
 
-SupportTypesOnNodes = [1;2;0;0;0;0;0;0;0;0]; % a vector that indicates how many unknown forces on each node respectively
+SupportTypesOnNodes = [2;0;1]; % a vector that indicates how many unknown forces on each node respectively
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% External loads
 ExF = [
-       -12, 0, 0, 34;
-       0, -30, -24, 34;
-       0, -18, -12, 25
+       1 0 5*sqrt(2)+6 5*sqrt(2)
        ]; % each row: [Fx,Fy,x,y]
 
 ExM = [0, 0, 0]; % [mag, x, y]
