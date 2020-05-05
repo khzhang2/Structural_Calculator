@@ -1,13 +1,13 @@
 clear;clc;hold off;
-
+%% this program applied method of joists to calculate the internal forces
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if_internal = 0;
 nodes = [
     0 0;
-    5*sqrt(2) 5*sqrt(2);
-    5*sqrt(2)+6 5*sqrt(2)
+    18 0;
+    30 0
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
 elements = [
@@ -15,12 +15,13 @@ elements = [
             2 3
             ]'; % each ![row]! represents an element, from node a to node b
 
-SupportTypesOnNodes = [2;0;1]; % a vector that indicates how many unknown forces on each node respectively
+SupportTypesOnNodes = [2;1;0]; % a vector that indicates how many unknown forces on each node respectively
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% External loads
 ExF = [
-       1 0 5*sqrt(2)+6 5*sqrt(2)
+       0 -5 30 0;
+       0 -36 9 0
        ]; % each row: [Fx,Fy,x,y]
 
 ExM = [0, 0, 0]; % [mag, x, y]
@@ -33,7 +34,7 @@ if size(elements,2)*3 < sum(SupportTypesOnNodes)
 end
 
 %% Calculate reaction forces
-F_sol = zeros(sum(SupportTypesOnNodes),1);
+%F_sol = zeros(sum(SupportTypesOnNodes),1);
 
     
 % create unknown variables of reaction forces on each nodes
@@ -63,7 +64,7 @@ for i=1:size(ExF, 1)
 end
 
 for k=1:size(F_react,1)
-    Mo = Mo + cross([nodes(k,:) 0], [F_react(k,1:2) 0]) + F_react(k, 3);
+    Mo = Mo + cross([nodes(k,:) 0], [F_react(k,1:2) 0]) + [0 0 F_react(k, 3)];
 end
 
 EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
@@ -232,9 +233,9 @@ function gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
         if F_internal_res(from, to) > 0
             plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'blue', 'LineWidth', lw) % plot, tension
         elseif F_internal_res(from, to) < 0
-            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'red', 'LineWidth', lw) % plot, tension
+            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'red', 'LineWidth', lw) % plot, compression
         else
-            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'green') % plot, tension
+            plot( nodes(elements(:, i), 1), nodes(elements(:, i), 2), 'color', 'green') % plot, zero
         end
     end
     
@@ -253,9 +254,9 @@ function draw_loads(total_F, total_M)
         max_M = max(M_mag);
         for i=1:size(total_M,1)
             if total_M(i,1)<0
-                plot(total_M(i,2),total_M(i,3), 'Marker', 'x', 'Color', 'g', 'MarkerSize', 10+20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
+                plot(total_M(i,2),total_M(i,3), 'Marker', 'x', 'Color', 'r', 'MarkerSize', 10+20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
             elseif total_M(i,1)>0
-                plot(total_M(i,2),total_M(i,3), 'Marker', 'o', 'Color', 'r', 'MarkerSize', 10+20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
+                plot(total_M(i,2),total_M(i,3), 'Marker', 'o', 'Color', 'b', 'MarkerSize', 10+20*M_mag(i)/max_M, 'LineWidth', 4*M_mag(i)/max_M)
             end
         end
     end
@@ -270,23 +271,23 @@ function draw_loads(total_F, total_M)
             Mo = cross([total_F(i, 3:4) 0], [total_F(i, 1:2) 0]);
             
             if Mo(3)<0
-                plot(linspace(min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),...
-                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),50),...
-                    linspace(min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),...
-                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),50), 'g.')
-                plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'g', 'MarkerSize', 7, 'MarkerFaceColor', 'green')
+                plot(linspace(total_F(i,3) - total_F(i,1)/max_F,...
+                    total_F(i,3),50),...
+                    linspace(total_F(i,4)-total_F(i,2)/max_F,...
+                    total_F(i,4),50), 'r.')
+                plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'r', 'MarkerSize', 7, 'MarkerFaceColor', 'r')
             elseif Mo(3)>0
-                plot(linspace(min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),...
-                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),50),...
-                    linspace(min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),...
-                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),50), 'r.')
-                plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'r', 'MarkerSize', 7, 'MarkerFaceColor', 'red')
+                plot(linspace(total_F(i,3) - total_F(i,1)/max_F,...
+                    total_F(i,3),50),...
+                    linspace(total_F(i,4)-total_F(i,2)/max_F,...
+                    total_F(i,4),50), 'b.')
+                plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'b', 'MarkerSize', 7, 'MarkerFaceColor', 'b')
             else
-                plot(linspace(min(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),...
-                    max(total_F(i,3), total_F(i,3) - total_F(i,1)/max_F),50),...
-                    linspace(min(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),...
-                    max(total_F(i,4), total_F(i,4)-total_F(i,2)/max_F),50), 'black.')
-                plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'white', 'MarkerSize', 7, 'MarkerFaceColor', 'black')
+                plot(linspace(total_F(i,3) - total_F(i,1)/max_F,...
+                    total_F(i,3),50),...
+                    linspace(total_F(i,4)-total_F(i,2)/max_F,...
+                    total_F(i,4),50), 'g.')
+                plot(total_F(i,3), total_F(i,4), 'Marker', 'd', 'Color', 'g', 'MarkerSize', 7, 'MarkerFaceColor', 'g')
             end
         end
     end
