@@ -7,8 +7,8 @@
 3. input support type, i.e. how many unkown reactions are there on each node, in "SupportTypesOnNodes"
 4. input external forces or moments in "ExF" and "ExM" respectively
 5. run
-6. obtain results: internal forces on each element, and reaction forces on each supporting nodes.
+6. obtained results: internal forces on each element, and reaction forces on each supporting nodes.
 
 ## how to use "Frame"
 Similar with "Truss", but you can input load in this script. See annotation in the script.
-Obtain results: reaction forces on each supporting nodes.
+Obtained results: reaction forces on each supporting nodes.
