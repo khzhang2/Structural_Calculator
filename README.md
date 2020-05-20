@@ -1,6 +1,7 @@
 # Structural Calculators
 
 ## how to use "Truss"
+open the file "profile_truss.m", input:
 0. choose whether you would like to calculate internal forces or not (internal forces could only be calculated on truss structures)
 1. input nodes coordinates in "nodes"
 2. input elements, from node a to node b in "elements"
