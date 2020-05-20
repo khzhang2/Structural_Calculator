@@ -1,36 +1,23 @@
-clear;clc;hold off;
+function F_internal_res = Truss()
 %% this program applied method of joists to calculate the internal forces
+% F_I_1 = F_internal_res
+% sum(sum(F_I_1 .* F_internal_res.*ele_len_mat)) % for displacement
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-if_internal = 0;
-nodes = [
-    0 0;
-    18 0;
-    30 0
-    ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
-
-elements = [
-            1 2;
-            2 3
-            ]'; % each ![row]! represents an element, from node a to node b
-
-SupportTypesOnNodes = [2;1;0]; % a vector that indicates how many unknown forces on each node respectively
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% External loads
-ExF = [
-       0 -5 30 0;
-       0 -36 9 0
-       ]; % each row: [Fx,Fy,x,y]
-
-ExM = [0, 0, 0]; % [mag, x, y]
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+load('profile_truss.mat')
 
 if size(elements,2)*3 < sum(SupportTypesOnNodes)
     disp('Structure indeterminante!')
     return
+end
+%% Calculate elements lengths
+s = size(nodes, 1);
+ele_len_mat = zeros(s, s);
+for i=1:size(elements, 2)
+    node1 = elements(1, i);
+    node2 = elements(2, i);
+    ele_len_mat(node1, node2) = sqrt(sum((nodes(node1, :) - nodes(node2, :)).^2));
 end
 
 %% Calculate reaction forces
@@ -216,7 +203,7 @@ draw_loads(total_F, total_M)
 
 
 
-
+end
 
 %% functions
 function gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
@@ -225,7 +212,7 @@ function gen_fig(nodes, elements, SupportTypesOnNodes, F_internal_res)
     ylim([-2 + min(nodes(:,2)), 2 + max(nodes(:,2))])
     grid on
 
-    max_mag = max(F_internal_res(:));
+    max_mag = max(abs(F_internal_res(:)));
     for i=1:size(elements, 2)
         from = elements(1, i);
         to = elements(2, i);

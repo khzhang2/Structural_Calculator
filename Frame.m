@@ -6,23 +6,27 @@ clear;clc;
 
 nodes = [
     0 0;
-    15 0;
-    15+15 0
+    6 0;
+    16 0;
+    26 0;
+    32 0
     ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
 
 elements = [
             1 2;
-            2 3
+            2 3;
+            3 4;
+            4 5
             ]'; % each ![row]! represents an element, from node a to node b
 
-SupportNodes = [1;2]; % nodes that have constrains
+SupportNodes = [2; 4]; % nodes that have constrains
         
-SupportTypesOnNodes = [2;0;1]; % a vector that indicates how many unknown forces on each node respectively
+SupportTypesOnNodes = [0 2 0 1 0]'; % a vector that indicates how many unknown forces on each node respectively
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% External loads
 ExF = [
-       0 9375 15 0
+       0 -30 32 0
        ]; % each row: [Fx,Fy,x,y]
 
 ExM = [0, 0, 0]; % [mag, x, y]
@@ -30,7 +34,8 @@ ExM = [0, 0, 0]; % [mag, x, y]
 % [L_function(l), [start_node, end_node], [direction_x, direction_y]]
 syms l
 ExL = [
-       500, [1, 3], [0, -1]
+       0.8, [4, 5], [0, -1];
+       0.8, [1, 2], [0, -1]
        ]; 
 
 
@@ -67,8 +72,12 @@ for i=1:size(ExL, 1)
     ExL_y(i) = ExL_f(i) * ExL(i, 5)/sum(ExL(i, 4:5).^2)^0.5;
     
     % the equivalent force position, respect to l, from node_start
-    ExL_point_l(i) = int(ExL(i, 1)*l, l, 0, sum((node_to_cor - node_from_cor).^2)^0.5)/...
-                  int(ExL(i, 1), l, 0, sum((node_to_cor - node_from_cor).^2)^0.5);
+    if ExL(i,1) ~= 0
+        ExL_point_l(i) = int(ExL(i, 1)*l, l, 0, sum((node_to_cor - node_from_cor).^2)^0.5)/...
+                       int(ExL(i, 1), l, 0, sum((node_to_cor - node_from_cor).^2)^0.5);
+    else
+        ExL_point_l(i) = 0;
+    end
 end
     
 
@@ -99,126 +108,6 @@ end
 
 EqnSet = [ Fx == 0; Fy == 0; Mo(3) == 0];
 
-
-
-
-% %% Calculate shear and moment diagrams
-% 
-% EqnSet = [];
-% F_react_if_calculated = ones(size(F_react, 1), 1); % 1 means haven't been calculated, -1 means already
-% ExM_if_calculated = ones(size(ExM, 1), 1);
-% ExF_if_calculated = ones(size(ExF, 1), 1);
-% ExL_if_calculated = ones(size(ExL, 1), 1);
-% V = {}; % shear forces at each element
-% M = {}; % internal moments at each element
-% 
-% 
-% 
-% 
-% 
-% for k = 1:size(elements, 2)
-%     from_node = elements(1, k);
-%     to_node = elements(2, k);
-%     l_dir = nodes(to_node, :) - nodes(from_node, :);
-%     
-%     node_func = [(nodes(to_node, 2)-nodes(from_node, 2))/(nodes(to_node, 1)-nodes(from_node, 1))...
-%                 , -(nodes(to_node, 2)-nodes(from_node, 2))/(nodes(to_node, 1)-nodes(from_node, 1))*...
-%                 nodes(from_node, 1)+nodes(from_node, 2)]; % [k, b], represent a linear function
-%     
-%     Fx = F_react(from_node, 1)*F_react_if_calculated(from_node)...
-%             + F_react(to_node, 1)*F_react_if_calculated(to_node);
-%     Fy = F_react(from_node, 2)*F_react_if_calculated(from_node)...
-%             + F_react(to_node, 2)*F_react_if_calculated(to_node);
-%     
-%     
-%     % calculate reaction forces at each nodes
-%     Mo = 0;
-%     for i=1:size(ExM, 1)
-%         if abs(ExM(i, 2)*node_func(1) + node_func(2) - ExM(i, 3)) < 1e-10
-%             Mo = Mo + ExM(i);
-%         end
-%     end
-%     
-%     for i=1:size(ExF, 1)
-%         if abs(ExF(i, 3) * node_func(1) + node_func(2) - ExF(i, 4)) < 1e-10
-%             Mo = Mo + cross([ExF(i, 3:4)-nodes(from_node, :) 0], [ExF(i, 1:2) 0]);
-%             Fx = Fx + ExF(i, 1);
-%             Fy = Fy + ExF(i, 2);
-%         end
-%     end
-%     for i=1:size(F_react, 1)
-%         if abs(nodes(i, 1) * node_func(1) + node_func(2) - nodes(i, 2)) < 1e-10
-%             Mo = Mo + cross([nodes(i,:)-nodes(from_node, :) 0], ...
-%                 [F_react(i,1:2)*F_react_if_calculated(i) 0]) + [0 0 F_react(i, 3)*F_react_if_calculated(i)];
-%         end
-%     end
-%     for i=1:size(ExL, 1)
-%         node_from_cor = nodes(ExL(i, 2), :);
-%         node_to_cor = nodes(ExL(i, 3), :);
-%         dir = (node_to_cor - node_from_cor)/sum((node_to_cor - node_from_cor).^2)^0.5;
-%         r = dir * ExL_point_l(i);
-%         if abs(min(ExL(i, 2:3)) - min(from_node,to_node)) < 1e-10 &&...
-%                 abs(max(ExL(i, 2:3)) - max(from_node,to_node)) < 1e-10
-%             Mo = Mo + cross([r 0], [ExL_f(i) * ExL(i, 4:5)/sum(ExL(i, 4:5).^2)^0.5 0]);
-%             Fx = Fx + ExL_x(i);
-%             Fy = Fy + ExL_y(i);
-%         end
-%     end
-% 
-%     EqnSet = [EqnSet; Fx == 0; Fy == 0; Mo(3) == 0];
-%     F_react_if_calculated(from_node) = -1;
-%     F_react_if_calculated(to_node) = -1;
-%     
-%     
-%     
-%     % calculate internal moment and shear forces
-%     % initialize variables
-%     syms ml vl
-%     Meq = 0;
-%     Veq = 0;
-%     
-%     for i = 1:size(ExM, 1)
-%         if abs(ExM(i, 2)*node_func(1) + node_func(2) - ExM(i, 3)) < 1e-10 && ExM_if_calculated(i) == 1
-%             v_temp = ExM(i, 2:3) - nodes(from_node, :); % direction from start to ExM
-%             M_exert_point = sum(v_temp.^2)^0.5;
-%             %Meq = Meq + ExM(i, 1) * (l>=0 & l<M_exert_point);
-%             Veq = Veq + 0;
-%             ExM_if_calculated(i) = -1;
-%         end
-%         
-%     end
-%     
-%     for i = 1:size(ExF, 1)
-%         if abs(ExF(i, 3) * node_func(1) + node_func(2) - ExF(i, 4)) < 1e-10 && ExF_if_calculated(i) == 1
-%             v_temp = ExF(i, 3:4) - nodes(from_node, :); % direction from start to ExF
-%             F_exert_point = sum(v_temp.^2)^0.5;
-%             ExF_dir = ExF(i, 2:3);
-%             ExF_dir = ExF_dir/norm(ExF_dir);
-%             %Meq = Meq + cross([ExF(i, 3:4)-nodes(from_node, :) 0], [ExF(i, 1:2) 0]) * (l>=0 & l<=F_exert_point);
-%             ExF_v = ExF(i,1)*ExF_dir - dot(ExF(i,1)*ExF_dir, v_temp/norm(v_temp))*v_temp/norm(v_temp)*(l>=0 & l<=F_exert_point);
-%             Veq = Veq + ExF_v(2);
-%             ExF_if_calculated(i) = -1;
-%         end
-%     end
-%     
-%     for i = size(ExL, 1)
-%         if abs(min(ExL(i, 2:3)) - min(from_node,to_node)) < 1e-10 &&...
-%                 abs(max(ExL(i, 2:3)) - max(from_node,to_node)) < 1e-10 &&...
-%                 ExL_if_calculated(i) == 1            
-%             ExL_dir = ExL(i, 2:3);
-%             ExL_dir = ExL_dir/norm(ExL_dir);
-%             ExL_mag = ExL(i, 1); % related to l
-%             ExL_perp = ExL_mag*ExL_dir - dot(ExL_mag*ExL_dir, l_dir/norm(l_dir))*l_dir/norm(l_dir);
-%             ExL_perp = ExL_perp(2);
-%             %Meq = Meq + cross([ExF(i, 3:4)-nodes(from_node, :) 0], [ExF(i, 1:2) 0]) * (l>=0 & l<=F_exert_point);
-%             Veq = Veq + int(ExL_perp, l, 0, sum(l_dir.^2)^0.5);
-%             ExL_if_calculated(i) = -1;
-%         end
-%     end
-%     Veq = Veq - vl*l;
-%     V{i} = solve(Veq==0);
-%     M{i} = int(V{i}, l);
-% end
 
 s = solve(EqnSet);
 F_name = fieldnames(s);
