@@ -5,7 +5,49 @@ function F_internal_res = Truss()
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% below is the overall structure
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-load('profile_truss.mat')
+clear; clc;
+if_internal = 1;
+nodes = [
+    0 0;
+    6 0;
+    12 0;
+    18 0;
+    24 0;
+    18 8;
+    12 10;
+    6 8
+    ]; % input nodes here, first column of matrix 'nodes' is x cord, second colomn is y
+
+elements = [
+            1 2;
+            2 3;
+            3 4;
+            4 5;
+            5 6;
+            6 7;
+            7 8;
+            8 1;
+            8 2;
+            8 3;
+            7 3;
+            6 3;
+            6 4
+            ]'; % each ![row]! represents an element, from node a to node b
+
+SupportTypesOnNodes = [2 0 0 0 1 0 0 0]'; % a vector that indicates how many unknown forces on each node respectively
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% External loads
+ExF = [
+       0 -50 6 8;
+       0 -200 6 0;
+       0 -150 12 0;
+       0 -100 18 0
+       ]; % each row: [Fx,Fy,x,y]
+
+ExM = [0, 0, 0]; % [mag, x, y]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if size(elements,2)*3 < sum(SupportTypesOnNodes)
     disp('Structure indeterminante!')
