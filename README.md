@@ -15,3 +15,6 @@ Similar with "Truss", but you can input load in this script. See annotation in t
 Obtained results: reaction forces on each supporting nodes.
 
 ## Demostration on "Truss"
+![demo_problem.png]
+![demo_problem_result.jpg]
+![demo_problem_result_figure.jpg]
