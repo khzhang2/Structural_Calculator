@@ -18,7 +18,7 @@ Open the file "truss_DSM.m" input:
 4. Input support types, 2 means both x and y are constrained; 12 means y constrained, 11 means x constrained, in "Supporting"
 5. Input external forces or moments in "ExF" and "ExM" respectively
 6. Run
-7. Obtained results: displacement of each degrees of fredom, internal forces on each element, and reaction forces on each supporting nodes.
+7. Obtained results: displacement of each *free* degrees, internal forces on each element, and reaction forces on each supporting nodes.
 
 ## How to use "Frame"
 Similar with "Truss", but you can input load in this script. See annotation in the script.
