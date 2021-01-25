@@ -19,7 +19,17 @@ Open the file "truss_DSM.m" input:
 4. Input support types, 2 means both x and y are constrained; 12 means y constrained, 11 means x constrained, in "Supporting"
 5. Input external forces or moments in "ExF" and "ExM" respectively
 6. Run
-7. Obtained results: displacement of each *free* degrees, internal forces on each element, and reaction forces on each supporting nodes.
+7. Obtained results: displacement of each degrees, internal forces on each element, and reaction forces on each supporting nodes.
+
+## How to use "frame_DSM.m"
+Open the file "frame_DSM.m" input:
+1. Input nodes coordinates in "nodes"
+2. Input elements, from node a to node b in "ele"
+3. Input geometry properties, which is a vector that contains properties of each element
+4. Input support types, as instructed by the comments
+5. Input external nodal forces or element equivalent forecs
+6. Run
+7. Obtained results: displacement of each degrees, element end forces, and reaction forces on each supporting nodes.
 
 ## How to use "Frame"
 Similar with "Truss", but you can input load in this script. See annotation in the script.
