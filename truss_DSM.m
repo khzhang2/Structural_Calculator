@@ -11,7 +11,7 @@ nodes = [0 0;
          0.25 0;
          0.25 0.25;
          0.75 0.25];
-ele = [1 2;
+eles = [1 2;
        2 3;
        3 4;
        4 5;
@@ -31,11 +31,11 @@ ele = [1 2;
        ];
 
 % Geometry properties
-E = 200e9*ones(size(ele, 1), 1);
-A = 0.002*ones(size(ele, 1), 1);
+E = 200e9*ones(size(eles, 1), 1);
+A = 0.002*ones(size(eles, 1), 1);
 
 
-% 2 mead xy constrain; 12 means y constrain, 11 means x constrain
+% 2 means xy constrain; 12 means y constrain, 11 means x constrain
 Supporting = [2 0 0 0 12 0 0 0 0 0]'; 
 
 ExF = [5000 0 2;
@@ -46,15 +46,15 @@ ExF = [5000 0 2;
 ExM = []; % [mag, node]
 
 % element freedom table, each node has 2 DoFs
-EFT = 1:1:2*size(ele, 1);
+EFT = 1:1:2*size(nodes, 1);
 
 
 %% Construct K_ff
 K = zeros(size(EFT, 2));
 
-for i = 1:size(ele, 1)
-    start_node = ele(i, 1);
-    end_node = ele(i, 2);
+for i = 1:size(eles, 1)
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
     vec = nodes(end_node, :) - nodes(start_node, :);
     L = norm(vec);
     th = atan(vec(2)/vec(1));
@@ -98,18 +98,18 @@ f_ff = f(EFTf);
 
 %% Caculate displacement for free degrees
 u_ff = Kff^-1*f_ff;
-disp('u_ff(N/m)=');
-disp(u_ff);
-
-%% Calculate internal forces for elements
-nodes_f = (EFTf + mod(EFTf, 2))/2;
-f_internal = zeros(size(ele, 1), 1);
 u = zeros(size(EFT, 2), 1);
 u(EFTf) = u_ff;
+disp('u(m)=');
+disp(u);
 
-for i = 1:size(ele, 1)
-    start_node = ele(i, 1);
-    end_node = ele(i, 2);
+%% Calculate internal forces for elements
+f_internal = zeros(size(eles, 1), 1);
+
+
+for i = 1:size(eles, 1)
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
     vec = nodes(end_node, :) - nodes(start_node, :);
     L = norm(vec);
     th = atan(vec(2)/vec(1));
@@ -140,13 +140,13 @@ disp(f_internal);
 support_nodes = find(Supporting~=0);
 ele_end_force = zeros(size(support_nodes, 1), 2);
 for i = 1:size(support_nodes, 1)
-    related_ele = sum(ele == support_nodes(i), 2);
+    related_ele = sum(eles == support_nodes(i), 2);
     related_ele_num = find(related_ele == 1);
     f_internal_related = f_internal(related_ele~=0);
     
     for j = 1:size(related_ele_num)
-        start_node = ele(related_ele_num(j), 1);
-        end_node = ele(related_ele_num(j), 2);
+        start_node = eles(related_ele_num(j), 1);
+        end_node = eles(related_ele_num(j), 2);
         vec = nodes(end_node, :) - nodes(start_node, :);
         L = norm(vec);
         th = atan(vec(2)/vec(1));
@@ -155,17 +155,17 @@ for i = 1:size(support_nodes, 1)
         end
         c = cos(th);
         s = sin(th);
-        if ele(related_ele_num(j), 1) == support_nodes(i)
+        if eles(related_ele_num(j), 1) == support_nodes(i)
             vec = vec;
-        elseif ele(related_ele_num(j), 2) == support_nodes(i)
+        elseif eles(related_ele_num(j), 2) == support_nodes(i)
             vec = -vec;
         end
         
-        ele_end_force(i, :) = ele_end_force(i, :) + f_internal_related(j)*vec/L; 
+        ele_end_force(i, :) = ele_end_force(i, :) - f_internal_related(j)*vec/L; 
     end
 end
 
-f_reaction = -ele_end_force;
+f_reaction = ele_end_force;
 disp('Supporting nodes:');
 disp(support_nodes);
 disp('Reaction(N)=');

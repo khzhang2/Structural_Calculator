@@ -1,4 +1,4 @@
-clear; clc; close all; format long;
+clear; clc; close all;
 % unit: N, m
 
 nodes = [0 0;
@@ -39,9 +39,9 @@ ExF = [];
 % equivalant external element element end forces (LOCAL)
 % [fyi, mi, fyj, mj, ele#]
 w1 = 20e3; 
-p2 = 20e3;
+p2 = 20e3; a = 0.3; b = 0.1;
 ExEF = [-7*w1*L(1)/20, -w1*L(1)^2/20, -3*w1*L(1)/20, w1*L(1)^2/30, 1;
-        -p2/2        , -p2*L(2)/8   , -p2/2        , p2*L(2)/8   , 2];
+        -p2*b^2*(L(2)+2*a)/L(2)^3, -p2*a*b^2/L(2)^2, -p2*a^2*(L(2)+2*b)/L(2)^3, p2*b*a^2/L(2)^2, 2];
 
 % element freedom table, each node has 3 DoFs
 EFT = 1:1:3*size(nodes, 1);
@@ -150,13 +150,14 @@ f_ff = f(EFTf);
 
 %% Caculate displacement for free degrees
 u_ff = Kff^-1*f_ff;
-disp('u_ff(N/m)=');
-disp([EFTf', u_ff]);
-
-%% Calculate internal forces for elements
-f_internal = zeros(size(eles, 1), 1);
 u = zeros(size(EFT, 2), 1);
 u(EFTf) = u_ff;
+disp('u(m)=');
+disp(u);
+
+%% Calculate element end forces
+f_ele_end = zeros(6, size(eles, 1));
+
 
 for i = 1:size(eles, 1)
     start_node = eles(i, 1);
@@ -206,9 +207,41 @@ for i = 1:size(eles, 1)
     end
     u_e = u(EFTe);
     f = k_e * u_e - f_EF_e;
+    
+    f_ele_end(:, i) = f;
 end
 
+disp('Element end forces(N)=');
+disp(f_ele_end);
+
 %% Calculate reactions
+support_nodes = find(Supporting~=0);
+reactions = zeros(3 * size(support_nodes, 1), 1);
+for i = 1 : size(support_nodes, 1)
+    % find which element this support node is
+    e = find(eles == support_nodes(i));
+    e_ind = ceil(e/2);
+    n_ind = 2 - ceil(e_ind - e/2);
+    
+    % reaction = f_ele_end
+    reactions(3*i-2:3*i) = f_ele_end(3*n_ind-2:3*n_ind, e_ind);
+    if Supporting(support_nodes(i)) == 2
+        reactions(3*i) = NaN;
+    elseif Supporting(support_nodes(i)) == 11
+        reactions(3*i-1) = NaN;
+        reactions(3*i) = NaN;
+    elseif Supporting(support_nodes(i)) == 12
+        reactions(3*i-2) = NaN;
+        reactions(3*i) = NaN;
+    elseif Supporting(support_nodes(i)) == 13
+        reactions(3*i-2) = NaN;
+        reactions(3*i-1) = NaN;
+    end
+end
+disp('Supporting nodes are')
+disp(support_nodes)
+disp('Reactions(N)=')
+disp(reactions)
 
 
 
