@@ -24,12 +24,12 @@ Open the file "truss_DSM.m" input:
 ## How to use "frame_DSM.m"
 Open the file "frame_DSM.m" input:
 1. Input nodes coordinates in "nodes"
-2. Input elements, from node a to node b in "ele"
+2. Input elements, from node a to node b in "eles"
 3. Input geometry properties, which is a vector that contains properties of each element
 4. Input support types, as instructed by the comments
-5. Input external nodal forces or element equivalent forecs
+5. Input external nodal forces and element equivalent forecs
 6. Run
-7. Obtained results: displacement of each degrees, element end forces, and reaction forces on each supporting nodes.
+7. Obtained results: displacement of each degrees, element end forces, and reaction forces on each supporting nodes, and a simple visualization of the structure, you can change the variable "mag_factor" to exaggerate the deformation.
 
 ## How to use "Frame"
 Similar with "Truss", but you can input load in this script. See annotation in the script.
