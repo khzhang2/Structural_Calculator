@@ -2,19 +2,22 @@ clear; clc; close all;
 % unit: N, m
 
 nodes = [0 0;
-        0 0.2;
-        0.4 0.2;
-        0.4 0];
+        0 6;
+        9 6;
+        18 6;
+        18 0];
 
 eles = [1 2;
        2 3;
-       3 4
+       3 4;
+       4 5
        ];
 
 % Geometry properties
-E = 2e11 * ones(3, 1);
-A = 5624*1e-6*ones(3, 1);
-I = 61200000*1e-12 * ones(3, 1);
+elenum = size(eles, 1);
+E = 2e11 * ones(elenum, 1);
+A = 5624*1e-6*ones(elenum, 1);
+I = 61200000*1e-12 * ones(elenum, 1);
 
 L = [];
 for i = 1:size(eles, 1)
@@ -23,25 +26,29 @@ for i = 1:size(eles, 1)
     vec = nodes(end_node, :) - nodes(start_node, :);
     L(i) = norm(vec);
 end
+L = L';
 
 
 % 3 means xyz constrained, 2 means xy constrained
 % 13 means z constrained, 12 means y constrained, 11 means x constrained,
 % hinge not contained
-Supporting = [2 0 0 2]';
+Supporting = [2 0 0 0 2]';
 
-% released nodes, n by 1
-nodes_r = [3]';
-
-% nodal forces (global), [Fx, Fy, node#]
+% nodal forces, moments (global), [Fx Fy Mz node#]
 ExF = []; 
 
+% element forces
+% element dist load: [mag(include local dir) eletag]
+w = [-3e3 2;
+    -3e3 3]; 
+% element force: [mag(include local dir) eletag DistFromStartNode]
+eleF = [];  % waiting for update
 % equivalant external element element end forces (LOCAL)
-% [fyi, mi, fyj, mj, ele#]
-w1 = 20e3; 
-p2 = 20e3; a = 0.3; b = 0.1;
-ExEF = [-7*w1*L(1)/20, -w1*L(1)^2/20, -3*w1*L(1)/20, w1*L(1)^2/30, 1;
-        -p2*b^2*(L(2)+2*a)/L(2)^3, -p2*a*b^2/L(2)^2, -p2*a^2*(L(2)+2*b)/L(2)^3, p2*b*a^2/L(2)^2, 2];
+% ExEF = [Fyi Mzi Fyj Mzj nodetag]
+w_mag = w(:, 1);
+w_tag = w(:, 2);
+L_w = L(w(:, 2));
+ExEF = [w_mag.*L_w/2 w_mag.*L_w.^2/12 w_mag.*L_w/2 -w_mag.*L_w.^2/12 w_tag];
 
 % element freedom table, each node has 3 DoFs
 EFT = 1:1:3*size(nodes, 1);
@@ -245,13 +252,30 @@ disp(reactions)
 
 
 
+%% visualization
+for i = 1:elenum
+    hold on
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    plot(nodes([start_node, end_node], 1), nodes([start_node, end_node], 2)...
+        , 'LineWidth', 1, 'Color', 'red');
+end
+grid on
+xlim([min(min(nodes))-5, max(max(nodes))+5]);
+ylim([min(min(nodes))-5, max(max(nodes))+5]);
 
-
-
-
-
-
-
+for i = 1:size(eles, 1)
+    hold on
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    
+    x_disp = u([start_node*3-2, end_node*3-2])*20;
+    y_disp = u([start_node*3 - 1, end_node*3 - 1])*20;
+    
+    plot(nodes([start_node, end_node], 1) + x_disp,...
+         nodes([start_node, end_node], 2) + y_disp...
+        , 'LineWidth', 5, 'Color', 'blue');
+end
 
 
 
