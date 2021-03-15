@@ -3,14 +3,21 @@ clear; clc; close all;
 
 nodes = [0 0;
         0 6;
-        9 6;
+        0 12
+        9 12;
+        18 12;
         18 6;
-        18 0];
+        18 0;
+        9 6];
 
 eles = [1 2;
        2 3;
        3 4;
-       4 5
+       4 5;
+       5 6;
+       6 7;
+       2 8;
+       8 6
        ];
 
 % Geometry properties
@@ -32,15 +39,17 @@ L = L';
 % 3 means xyz constrained, 2 means xy constrained
 % 13 means z constrained, 12 means y constrained, 11 means x constrained,
 % hinge not contained
-Supporting = [2 0 0 0 2]';
+Supporting = [3 0 0 0 0 0 3 0]';
 
-% nodal forces, moments (global), [Fx Fy Mz node#]
-ExF = []; 
+% nodal forces, moments (global), [Fx Fy node#]
+ExF = [3e3 0 2]; 
 
 % element forces
 % element dist load: [mag(include local dir) eletag]
-w = [-3e3 2;
-    -3e3 3]; 
+w = [-3e3 3;
+    -3e3 4;
+    -3e3 7;
+    -3e3 8]; 
 % element force: [mag(include local dir) eletag DistFromStartNode]
 eleF = [];  % waiting for update
 % equivalant external element element end forces (LOCAL)
