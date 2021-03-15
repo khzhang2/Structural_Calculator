@@ -21,10 +21,19 @@ eles = [1 2;
        ];
 
 % Geometry properties
+mag_factor = 2500;  % magnification factor for visualization
+B = .50;
+H_c = .50;
+H_b = 1.;
+A_c = B*H_c;
+I_c = 1./12.*B*H_c^3;
+A_b = B*H_b;
+I_b = 1./12.*B*H_b^3;
+
 elenum = size(eles, 1);
-E = 2e11 * ones(elenum, 1);
-A = 5624*1e-6*ones(elenum, 1);
-I = 61200000*1e-12 * ones(elenum, 1);
+E = 2.1e11 * ones(elenum, 1);
+A = [A_c A_c A_b A_b A_c A_c A_b A_b]';
+I = [I_c I_c I_b I_b I_c I_c I_b I_b]';
 
 L = [];
 for i = 1:size(eles, 1)
@@ -42,7 +51,7 @@ L = L';
 Supporting = [3 0 0 0 0 0 3 0]';
 
 % nodal forces, moments (global), [Fx Fy node#]
-ExF = [3e3 0 2]; 
+ExF = []; 
 
 % element forces
 % element dist load: [mag(include local dir) eletag]
@@ -169,7 +178,7 @@ u_ff = Kff^-1*f_ff;
 u = zeros(size(EFT, 2), 1);
 u(EFTf) = u_ff;
 disp('u(m)=');
-disp(u);
+disp(reshape(u, [3, numel(u)/3]));
 
 %% Calculate element end forces
 f_ele_end = zeros(6, size(eles, 1));
@@ -278,8 +287,9 @@ for i = 1:size(eles, 1)
     start_node = eles(i, 1);
     end_node = eles(i, 2);
     
-    x_disp = u([start_node*3-2, end_node*3-2])*20;
-    y_disp = u([start_node*3 - 1, end_node*3 - 1])*20;
+    
+    x_disp = u([start_node*3-2, end_node*3-2])*mag_factor;
+    y_disp = u([start_node*3 - 1, end_node*3 - 1])*mag_factor;
     
     plot(nodes([start_node, end_node], 1) + x_disp,...
          nodes([start_node, end_node], 2) + y_disp...
