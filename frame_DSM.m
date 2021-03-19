@@ -3,25 +3,19 @@ clear; clc; close all;
 
 nodes = [0 0;
         0 6;
-        0 12
-        9 12;
-        18 12;
         18 6;
-        18 0;
-        9 6];
+        18 0];
 
 eles = [1 2;
        2 3;
-       3 4;
-       4 5;
-       5 6;
-       6 7;
-       2 8;
-       8 6
+       3 4
        ];
 
+
+resolution = .5;  % larger, finer
+
 % Geometry properties
-mag_factor = 2500;  % magnification factor for visualization
+mag_factor = 3000;  % magnification factor for visualization
 B = .50;
 H_c = .50;
 H_b = 1.;
@@ -31,9 +25,135 @@ A_b = B*H_b;
 I_b = 1./12.*B*H_b^3;
 
 elenum = size(eles, 1);
-E = 2.1e11 * ones(elenum, 1);
-A = [A_c A_c A_b A_b A_c A_c A_b A_b]';
-I = [I_c I_c I_b I_b I_c I_c I_b I_b]';
+E = 30e9 * ones(elenum, 1);
+A = [A_c A_b A_c]';
+I = [I_c I_b I_c]';
+
+% 3 means xyz constrained, 2 means xy constrained
+% 13 means z constrained, 12 means y constrained, 11 means x constrained,
+% hinge not contained
+Supporting = [3 0 0 3]';
+
+% nodal forces, moments (global), [Fx Fy node#]
+ExF = [0 0 2;
+       0 0 3]; 
+
+% element forces
+% element dist load: [mag(include local dir) eletag]
+w = [-3e3 2;
+    ]; 
+% element force: [mag(include local dir) eletag DistFromStartNode]
+eleF = [];  % waiting for update
+%%
+
+% length container
+L = [];
+for i = 1:size(eles, 1)
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    vec = nodes(end_node, :) - nodes(start_node, :);
+    L(i) = norm(vec);
+end
+L = L';
+
+
+%% assemble new "nodes"
+num_nodes_inserted_set = floor(L * resolution);  % dim: num_ele by 1
+
+nodes_old = nodes;
+num_nodes_inserted_cm_set = [0 sum(num_nodes_inserted_set*...
+                    ones(size(num_nodes_inserted_set')).*...
+                    triu(ones(3),0), 1)]';  % culumative, [1,2,3]->[1,3,6] 
+
+nodes = zeros(size(nodes_old, 1) + sum(num_nodes_inserted_set), 2);  % nodes(0, :) = [0 0] should hold
+%nodes(oldnodes_ind, :) = nodes_old;
+
+oldnodes_ind = [1];
+for i=1:size(eles, 1)
+  start_node = nodes_old(eles(i, 1), :);  %coordinate
+  end_node = nodes_old(eles(i, 2), :);  %coordinate
+
+  x_set = linspace( start_node(1), end_node(1), num_nodes_inserted_set(i)+2 )';
+  x_set = x_set(2:size(x_set, 1)-1);
+  y_set = linspace( start_node(2), end_node(2), num_nodes_inserted_set(i)+2 )';
+  y_set = y_set(2:size(y_set, 1)-1);
+
+  nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 1) = x_set;
+  nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 2) = y_set;
+
+  if ismember(end_node, nodes, 'rows')
+    % do nothing
+  else
+    nodes(i+1+num_nodes_inserted_cm_set(i+1), 1) = end_node(1);
+    nodes(i+1+num_nodes_inserted_cm_set(i+1), 2) = end_node(2);
+
+    oldnodes_ind = [oldnodes_ind; i+1+num_nodes_inserted_cm_set(i+1)];
+  end
+
+end
+
+%% assemble new "eles"
+eles_old = eles;
+
+for i=1:numel(eles)
+  eles(i) = oldnodes_ind(eles(i));
+end
+
+eles_org = eles;  % eles tags using new nodes coordinates
+
+eles = [];
+A_old = A;
+I_old = I;
+E_old = E;
+A = []; E = []; I = [];
+
+orgeletag_set = [];
+
+for i=1:size(eles_org)
+    %eles = [eles; eles_org(i, :)];
+
+    num_eles = eles_org(i, 2) - eles_org(i, 1);
+    ele_table = [eles_org(i, 1) : 1 : eles_org(i, 2)];
+
+    from_nodes = ele_table(1: numel(ele_table)-1);
+    to_nodes = ele_table(2: numel(ele_table));
+
+    eles = [eles; [from_nodes' to_nodes']];
+
+    A = [A; A_old(i)*ones(num_eles, 1)];
+    E = [E; E_old(i)*ones(num_eles, 1)];
+    I = [I; I_old(i)*ones(num_eles, 1)];
+
+    orgeletag_set = [orgeletag_set; ones(num_eles, 1)*i];
+end
+
+orgeletag_set = [orgeletag_set (1:1:numel(orgeletag_set))'];
+
+%% assemble the rest stuffs
+
+elenum = size(eles, 1);
+
+Supporting_old = Supporting;
+Supporting_ind = oldnodes_ind(Supporting_old~=0);
+Supporting_type = Supporting_old(Supporting_old~=0);
+
+Supporting = zeros(size(nodes, 1), 1);
+Supporting(Supporting_ind) = Supporting_type;
+
+ExF_old = ExF;
+ExF = zeros(size(ExF_old));
+ExF(:, 1:2) = ExF_old(:, 1:2);
+ExF(:, 3) = oldnodes_ind(ExF_old(:, 3));
+
+w_old = w;
+w = [];  % [mag eletag]
+
+for i=1:size(w_old, 1)
+    orgele_under_w = w_old(i, 2);
+    eles_under_w = orgeletag_set(orgeletag_set(:, 1)==orgele_under_w, 2);
+    w_mag = w_old(i, 1) * ones(numel(eles_under_w), 1);
+    w = [w; [w_mag eles_under_w]];
+end
 
 L = [];
 for i = 1:size(eles, 1)
@@ -45,23 +165,7 @@ end
 L = L';
 
 
-% 3 means xyz constrained, 2 means xy constrained
-% 13 means z constrained, 12 means y constrained, 11 means x constrained,
-% hinge not contained
-Supporting = [3 0 0 0 0 0 3 0]';
-
-% nodal forces, moments (global), [Fx Fy node#]
-ExF = []; 
-
-% element forces
-% element dist load: [mag(include local dir) eletag]
-w = [-3e3 3;
-    -3e3 4;
-    -3e3 7;
-    -3e3 8]; 
-% element force: [mag(include local dir) eletag DistFromStartNode]
-eleF = [];  % waiting for update
-% equivalant external element element end forces (LOCAL)
+%% equivalant external element element end forces (LOCAL)
 % ExEF = [Fyi Mzi Fyj Mzj nodetag]
 w_mag = w(:, 1);
 w_tag = w(:, 2);
@@ -78,7 +182,7 @@ for i = 1:size(eles, 1)
     start_node = eles(i, 1);
     end_node = eles(i, 2);
     vec = nodes(end_node, :) - nodes(start_node, :);
-    th = atan(vec(2)/vec(1));
+    th = asin(vec(2)/norm(vec));
     if vec(1) < 0
         th = th + pi;
     end
@@ -145,7 +249,7 @@ for i = 1:size(ExEF, 1)
     start_node = eles(ele, 1);
     end_node = eles(ele, 2);
     vec = nodes(end_node, :) - nodes(start_node, :);
-    th = atan(vec(2)/vec(1));
+    th = asin(vec(2)/norm(vec));
     if vec(1) < 0
         th = th + pi;
     end
@@ -188,7 +292,7 @@ for i = 1:size(eles, 1)
     start_node = eles(i, 1);
     end_node = eles(i, 2);
     vec = nodes(end_node, :) - nodes(start_node, :);
-    th = atan(vec(2)/vec(1));
+    th = asin(vec(2)/norm(vec));
     if vec(1) < 0
         th = th + pi;
     end
@@ -236,8 +340,36 @@ for i = 1:size(eles, 1)
     f_ele_end(:, i) = f;
 end
 
-disp('Element end forces(N)=');
+disp('Element end forces (global) (N)=');
 disp(f_ele_end);
+
+f_ele_end_b = zeros(size(f_ele_end));
+
+for i = 1:size(eles, 1)
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    vec = nodes(end_node, :) - nodes(start_node, :);
+    th = asin(vec(2)/norm(vec));
+    if vec(1) < 0
+        th = th + pi;
+    end
+    c = cos(th);
+    s = sin(th);
+    
+    % transformation matrix
+    T_e = [c s 0 0 0 0;
+           -s c 0 0 0 0;
+           0 0 1 0 0 0;
+           0 0 0 c s 0;
+           0 0 0 -s c 0;
+           0 0 0 0 0 1];
+    
+    
+    f_ele_end_b(:, i) = T_e * f_ele_end(:, i);
+end
+
+disp('Element end forces (local) (N)=');
+disp(f_ele_end_b);
 
 %% Calculate reactions
 support_nodes = find(Supporting~=0);
@@ -269,8 +401,11 @@ disp('Reactions(N)=')
 disp(reactions)
 
 
-
+  
 %% visualization
+figure()
+subplot(221)
+title('deformed shape')
 for i = 1:elenum
     hold on
     start_node = eles(i, 1);
@@ -295,6 +430,121 @@ for i = 1:size(eles, 1)
          nodes([start_node, end_node], 2) + y_disp...
         , 'LineWidth', 5, 'Color', 'blue');
 end
+
+subplot(222)
+for i = 1:elenum
+    hold on
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    plot(nodes([start_node, end_node], 1), nodes([start_node, end_node], 2)...
+        , 'LineWidth', 1, 'Color', 'red');
+end
+grid on
+
+subplot(223)
+for i = 1:elenum
+    hold on
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    plot(nodes([start_node, end_node], 1), nodes([start_node, end_node], 2)...
+        , 'LineWidth', 1, 'Color', 'red');
+end
+grid on
+
+subplot(224)
+for i = 1:elenum
+    hold on
+    start_node = eles(i, 1);
+    end_node = eles(i, 2);
+    plot(nodes([start_node, end_node], 1), nodes([start_node, end_node], 2)...
+        , 'LineWidth', 1, 'Color', 'red');
+end
+grid on
+
+orgele_num = numel(unique(orgeletag_set(:, 1)));
+
+for i=1:orgele_num
+    start_node = eles_org(i, 1);
+    end_node = eles_org(i, 2);
+    vec = nodes(end_node, :) - nodes(start_node, :);
+    th = asin(vec(2)/norm(vec));
+    if vec(1) < 0
+        th = th + pi;
+    end
+    c = cos(th);
+    s = sin(th);
+    R = [c -s; s c];  % rotation matrix
+    
+    V_set = [];
+    
+    ele_temp = orgeletag_set(orgeletag_set(:, 1)==i, :);  % orgeletag_set for this element
+    V_set = [f_ele_end_b(2, ele_temp(1, 2)) -f_ele_end_b(5, orgeletag_set(:, 1)==i)];
+    start_node = eles_org(i, 1);
+    end_node = eles_org(i, 2);
+    V_set = R*[zeros(1, numel(V_set)); V_set]/2/mag_factor + nodes(start_node:end_node, :)';
+    
+    subplot(222)
+    title('shear force diagram')
+    plot(V_set(1, :), V_set(2, :), 'LineWidth', 2, 'Color', 'blue')
+    xlim([min(min(V_set))-5, max(max(V_set))+5]);
+    ylim([min(min(V_set))-5, max(max(V_set))+5]);
+    
+    M_set = [];
+    
+    M_set = [-f_ele_end_b(3, ele_temp(1, 2)) f_ele_end_b(6, orgeletag_set(:, 1)==i)];
+    M_set = R*[zeros(1, numel(M_set)); M_set]/2/mag_factor + nodes(start_node:end_node, :)';
+    
+    subplot(223)
+    title('moment diagram')
+    plot(M_set(1, :), M_set(2, :), 'LineWidth', 2, 'Color', 'blue')
+    xlim([min(min(M_set))-5, max(max(M_set))+5]);
+    ylim([min(min(M_set))-5, max(max(M_set))+5]);
+    
+    
+    P_set = [];
+    
+    P_set = [-f_ele_end_b(1, ele_temp(1, 2)) f_ele_end_b(4, orgeletag_set(:, 1)==i)];
+    P_set = R*[zeros(1, numel(P_set)); P_set]/2/mag_factor + nodes(start_node:end_node, :)';
+    
+    subplot(224)
+    title('normal force diagram')
+    plot(P_set(1, :), P_set(2, :), 'LineWidth', 2, 'Color', 'blue')
+    xlim([min(min(P_set))-5, max(max(P_set))+5]);
+    ylim([min(min(P_set))-5, max(max(P_set))+5]);
+    
+    
+end
+
+%xlim([min(min(nodes))-5, max(max(nodes))+5]);
+%ylim([min(min(nodes))-5, max(max(nodes))+5]);
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
