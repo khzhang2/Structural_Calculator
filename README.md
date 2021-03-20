@@ -31,7 +31,7 @@ Open the file "frame_DSM.m" input:
 6. Run
 7. Obtained results: displacement of each degrees, element end forces, and reaction forces on each supporting nodes, and a simple visualization of the structure, you can change the variable "mag_factor" to exaggerate the deformation.
 
-“resolution” relates to the level of finess of visualization.
+“resolution” relates to the level of finess of visualization. If you would like to check the element end forces, change "resolution" to 0.
 
 ## How to use "Frame"
 Similar with "Truss", but you can input load in this script. See annotation in the script.
