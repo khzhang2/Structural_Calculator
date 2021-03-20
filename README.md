@@ -33,11 +33,17 @@ Open the file "frame_DSM.m" input:
 
 “resolution” relates to the level of finess of visualization. If you would like to check the element end forces, change "resolution" to 0.
 
-## How to use "Frame"
+## How to use "Frame.m"
 Similar with "Truss", but you can input load in this script. See annotation in the script.
 Obtained results: reaction forces on each supporting nodes.
 
-## Demostration on "Truss"
+## Demostration on "Truss.m"
 ![image](demo_problem.png)
 ![image](demo_problem_result.jpg)
 ![image](demo_problem_result_figure.jpg)
+
+And "truss_DSM.m" can provide exactly the same result (but no visualization).
+
+## Demostration on "frame_DSM.m"
+![image](demo_frame_result.png)
+![image](demo_frame_fig.png)
