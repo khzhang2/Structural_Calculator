@@ -3,19 +3,24 @@ clear; clc; close all;
 
 nodes = [0 0;
         0 6;
+        0 12;
+        18 12;
         18 6;
         18 0];
 
 eles = [1 2;
        2 3;
-       3 4
+       3 4;
+       4 5;
+       5 6;
+       2 5
        ];
 
 
-resolution = .5;  % larger, finer
+resolution = 3;  % larger, finer
 
 % Geometry properties
-mag_factor = 3000;  % magnification factor for visualization
+mag_factor = 5000;  % magnification factor for visualization
 B = .50;
 H_c = .50;
 H_b = 1.;
@@ -26,21 +31,22 @@ I_b = 1./12.*B*H_b^3;
 
 elenum = size(eles, 1);
 E = 30e9 * ones(elenum, 1);
-A = [A_c A_b A_c]';
-I = [I_c I_b I_c]';
+A = [A_c A_c A_b A_c A_c A_b]';
+I = [I_c I_c I_b I_c I_c A_b]';
 
 % 3 means xyz constrained, 2 means xy constrained
 % 13 means z constrained, 12 means y constrained, 11 means x constrained,
 % hinge not contained
-Supporting = [3 0 0 3]';
+Supporting = [3 0 0 0 0 3 ]';
 
 % nodal forces, moments (global), [Fx Fy node#]
-ExF = [0 0 2;
-       0 0 3]; 
+ExF = [3e3 0 2;
+       -3e3 0 3]; 
 
 % element forces
 % element dist load: [mag(include local dir) eletag]
-w = [-3e3 2;
+w = [-1e3 3;
+    -3e3 6;
     ]; 
 % element force: [mag(include local dir) eletag DistFromStartNode]
 eleF = [];  % waiting for update
@@ -63,12 +69,13 @@ num_nodes_inserted_set = floor(L * resolution);  % dim: num_ele by 1
 nodes_old = nodes;
 num_nodes_inserted_cm_set = [0 sum(num_nodes_inserted_set*...
                     ones(size(num_nodes_inserted_set')).*...
-                    triu(ones(3),0), 1)]';  % culumative, [1,2,3]->[1,3,6] 
+                    triu(ones(numel(num_nodes_inserted_set)), 0), 1)]';  % culumative, [1,2,3]->[1,3,6] 
 
 nodes = zeros(size(nodes_old, 1) + sum(num_nodes_inserted_set), 2);  % nodes(0, :) = [0 0] should hold
 %nodes(oldnodes_ind, :) = nodes_old;
 
 oldnodes_ind = [1];
+nodes_eles_table = zeros(size(nodes, 1), 1);  % only for inserted nodes
 for i=1:size(eles, 1)
   start_node = nodes_old(eles(i, 1), :);  %coordinate
   end_node = nodes_old(eles(i, 2), :);  %coordinate
@@ -80,6 +87,8 @@ for i=1:size(eles, 1)
 
   nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 1) = x_set;
   nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 2) = y_set;
+  
+  nodes_eles_table(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1)) = i;
 
   if ismember(end_node, nodes, 'rows')
     % do nothing
@@ -108,12 +117,22 @@ E_old = E;
 A = []; E = []; I = [];
 
 orgeletag_set = [];
+for i=1:numel(num_nodes_inserted_set)
+    orgeletag_set = [orgeletag_set; i*ones(num_nodes_inserted_set(i)+1, 1)];
+end
+orgeletag_set = [orgeletag_set (1:1:numel(orgeletag_set))'];
 
-for i=1:size(eles_org)
+for i=1:size(eles_org, 1)
     %eles = [eles; eles_org(i, :)];
+    if i==6
+        a=1;
+    end
 
-    num_eles = eles_org(i, 2) - eles_org(i, 1);
-    ele_table = [eles_org(i, 1) : 1 : eles_org(i, 2)];
+    num_eles = sum(orgeletag_set(:, 1)==i);
+    start_node = eles_org(i, 1);
+    end_node = eles_org(i, 2);
+    inserted_nodes = find(nodes_eles_table==i)';
+    ele_table = [start_node inserted_nodes end_node];
 
     from_nodes = ele_table(1: numel(ele_table)-1);
     to_nodes = ele_table(2: numel(ele_table));
@@ -123,11 +142,8 @@ for i=1:size(eles_org)
     A = [A; A_old(i)*ones(num_eles, 1)];
     E = [E; E_old(i)*ones(num_eles, 1)];
     I = [I; I_old(i)*ones(num_eles, 1)];
-
-    orgeletag_set = [orgeletag_set; ones(num_eles, 1)*i];
 end
 
-orgeletag_set = [orgeletag_set (1:1:numel(orgeletag_set))'];
 
 %% assemble the rest stuffs
 
@@ -481,7 +497,8 @@ for i=1:orgele_num
     V_set = [f_ele_end_b(2, ele_temp(1, 2)) -f_ele_end_b(5, orgeletag_set(:, 1)==i)];
     start_node = eles_org(i, 1);
     end_node = eles_org(i, 2);
-    V_set = R*[zeros(1, numel(V_set)); V_set]/2/mag_factor + nodes(start_node:end_node, :)';
+    eles_table_plot = nodes([start_node find(nodes_eles_table==i)' end_node], :)';
+    V_set = R*[zeros(1, numel(V_set)); V_set]/2/mag_factor + eles_table_plot;
     
     subplot(222)
     title('shear force diagram')
@@ -492,7 +509,7 @@ for i=1:orgele_num
     M_set = [];
     
     M_set = [-f_ele_end_b(3, ele_temp(1, 2)) f_ele_end_b(6, orgeletag_set(:, 1)==i)];
-    M_set = R*[zeros(1, numel(M_set)); M_set]/2/mag_factor + nodes(start_node:end_node, :)';
+    M_set = R*[zeros(1, numel(M_set)); M_set]/2/mag_factor + eles_table_plot;
     
     subplot(223)
     title('moment diagram')
@@ -504,7 +521,7 @@ for i=1:orgele_num
     P_set = [];
     
     P_set = [-f_ele_end_b(1, ele_temp(1, 2)) f_ele_end_b(4, orgeletag_set(:, 1)==i)];
-    P_set = R*[zeros(1, numel(P_set)); P_set]/2/mag_factor + nodes(start_node:end_node, :)';
+    P_set = R*[zeros(1, numel(P_set)); P_set]/2/mag_factor + eles_table_plot;
     
     subplot(224)
     title('normal force diagram')
