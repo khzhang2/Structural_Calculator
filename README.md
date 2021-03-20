@@ -45,5 +45,6 @@ Obtained results: reaction forces on each supporting nodes.
 And "truss_DSM.m" can provide exactly the same result (but no visualization).
 
 ## Demostration on "frame_DSM.m"
+![image](demo_frame_config.png)
 ![image](demo_frame_result.png)
 ![image](demo_frame_fig.png)
