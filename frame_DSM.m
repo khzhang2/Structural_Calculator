@@ -3,21 +3,24 @@ clear; clc; close all;
 
 nodes = [0 0;
         0 6;
-        0 12;
-        18 12;
+        4.5 6;
+        9 6;
+        13.5 6;
         18 6;
-        18 0];
+        18 0;
+        9 0];
 
 eles = [1 2;
        2 3;
        3 4;
        4 5;
        5 6;
-       2 5
+       6 7;
+       4 8
        ];
 
 
-resolution = 3;  % larger, finer
+resolution = 5;  % larger, finer
 
 % Geometry properties
 mag_factor = 5000;  % magnification factor for visualization
@@ -31,22 +34,25 @@ I_b = 1./12.*B*H_b^3;
 
 elenum = size(eles, 1);
 E = 30e9 * ones(elenum, 1);
-A = [A_c A_c A_b A_c A_c A_b]';
-I = [I_c I_c I_b I_c I_c A_b]';
+A = [A_c A_b A_b A_b A_b A_c A_c]';
+I = [I_c I_b I_b I_b I_b I_c I_c]';
 
 % 3 means xyz constrained, 2 means xy constrained
 % 13 means z constrained, 12 means y constrained, 11 means x constrained,
 % hinge not contained
-Supporting = [3 0 0 0 0 3 ]';
+Supporting = [3 0 0 0 0 0 3 3]';
 
-% nodal forces, moments (global), [Fx Fy node#]
+% nodal forces (global), [Fx Fy node#]
 ExF = [3e3 0 2;
-       -3e3 0 3]; 
+       3e3 0 4;
+       3e3 0 6]; 
 
 % element forces
 % element dist load: [mag(include local dir) eletag]
-w = [-1e3 3;
-    -3e3 6;
+w = [-0 2;
+     -0 3;
+     -0 4;
+     -0 5
     ]; 
 % element force: [mag(include local dir) eletag DistFromStartNode]
 eleF = [];  % waiting for update
@@ -77,27 +83,26 @@ nodes = zeros(size(nodes_old, 1) + sum(num_nodes_inserted_set), 2);  % nodes(0, 
 oldnodes_ind = [1];
 nodes_eles_table = zeros(size(nodes, 1), 1);  % only for inserted nodes
 for i=1:size(eles, 1)
-  start_node = nodes_old(eles(i, 1), :);  %coordinate
-  end_node = nodes_old(eles(i, 2), :);  %coordinate
+    start_node = nodes_old(eles(i, 1), :);  %coordinate
+    end_node = nodes_old(eles(i, 2), :);  %coordinate
 
-  x_set = linspace( start_node(1), end_node(1), num_nodes_inserted_set(i)+2 )';
-  x_set = x_set(2:size(x_set, 1)-1);
-  y_set = linspace( start_node(2), end_node(2), num_nodes_inserted_set(i)+2 )';
-  y_set = y_set(2:size(y_set, 1)-1);
+    x_set = linspace( start_node(1), end_node(1), num_nodes_inserted_set(i)+2 )';
+    x_set = x_set(2:size(x_set, 1)-1);
+    y_set = linspace( start_node(2), end_node(2), num_nodes_inserted_set(i)+2 )';
+    y_set = y_set(2:size(y_set, 1)-1);
 
-  nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 1) = x_set;
-  nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 2) = y_set;
-  
-  nodes_eles_table(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1)) = i;
+    nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 1) = x_set;
+    nodes(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1), 2) = y_set;
 
-  if ismember(end_node, nodes, 'rows')
-    % do nothing
-  else
-    nodes(i+1+num_nodes_inserted_cm_set(i+1), 1) = end_node(1);
-    nodes(i+1+num_nodes_inserted_cm_set(i+1), 2) = end_node(2);
-
-    oldnodes_ind = [oldnodes_ind; i+1+num_nodes_inserted_cm_set(i+1)];
-  end
+    nodes_eles_table(i+1+num_nodes_inserted_cm_set(i) : i+num_nodes_inserted_cm_set(i+1)) = i;
+    
+    if ismember(end_node, nodes, 'rows')
+    	 % do nothing
+    else
+        nodes(i+1+num_nodes_inserted_cm_set(i+1), 1) = end_node(1);
+        nodes(i+1+num_nodes_inserted_cm_set(i+1), 2) = end_node(2);
+        oldnodes_ind = [oldnodes_ind; i+1+num_nodes_inserted_cm_set(i+1)];
+    end
 
 end
 
@@ -297,7 +302,7 @@ f_ff = f(EFTf);
 u_ff = Kff^-1*f_ff;
 u = zeros(size(EFT, 2), 1);
 u(EFTf) = u_ff;
-disp('u(m)=');
+disp('u rows: [disp_x; disp_y; rotation_z] cols: [nodes] (global) (unit: m)=');
 disp(reshape(u, [3, numel(u)/3]));
 
 %% Calculate element end forces
@@ -356,7 +361,8 @@ for i = 1:size(eles, 1)
     f_ele_end(:, i) = f;
 end
 
-disp('Element end forces (global) (N)=');
+disp('Element end forces (global) (unit: N)=');
+disp('rows: [Fxi; Fyi; Mzi; Fxj; Fyj; Mzj] cols: [nodes]');
 disp(f_ele_end);
 
 f_ele_end_b = zeros(size(f_ele_end));
@@ -385,6 +391,7 @@ for i = 1:size(eles, 1)
 end
 
 disp('Element end forces (local) (N)=');
+disp('rows: [Fxi; Fyi; Mzi; Fxj; Fyj; Mzj] cols: [nodes]');
 disp(f_ele_end_b);
 
 %% Calculate reactions
@@ -392,9 +399,9 @@ support_nodes = find(Supporting~=0);
 reactions = zeros(3 * size(support_nodes, 1), 1);
 for i = 1 : size(support_nodes, 1)
     % find which element this support node is
-    e = find(eles == support_nodes(i));
+    e = find(eles' == support_nodes(i));
     e_ind = ceil(e/2);
-    n_ind = 2 - ceil(e_ind - e/2);
+    n_ind = 2 - ceil(e_ind - e/2);  % 1 means from, 2 means to
     
     % reaction = f_ele_end
     reactions(3*i-2:3*i) = f_ele_end(3*n_ind-2:3*n_ind, e_ind);
@@ -411,10 +418,12 @@ for i = 1 : size(support_nodes, 1)
         reactions(3*i-1) = NaN;
     end
 end
-disp('Supporting nodes are')
-disp(support_nodes)
-disp('Reactions(N)=')
-disp(reactions)
+disp('Supporting nodes are (node tags)')
+disp(support_nodes')
+disp('Reactions(unit: N)=')
+disp('rows: [react_Fx; react_Fy; react_M] cols: [nodes]')
+
+disp(reshape(reactions, [numel(reactions)/numel(support_nodes), numel(support_nodes)]))
 
 
   
@@ -498,88 +507,45 @@ for i=1:orgele_num
     start_node = eles_org(i, 1);
     end_node = eles_org(i, 2);
     eles_table_plot = nodes([start_node find(nodes_eles_table==i)' end_node], :)';
-    V_set = R*[zeros(1, numel(V_set)); V_set]/2/mag_factor + eles_table_plot;
+    V_set = mag_factor*R*[zeros(1, numel(V_set)); V_set]/1e7 + eles_table_plot;
     
     subplot(222)
     title('shear force diagram')
     plot(V_set(1, :), V_set(2, :), 'LineWidth', 2, 'Color', 'blue')
-    xlim([min(min(V_set))-5, max(max(V_set))+5]);
-    ylim([min(min(V_set))-5, max(max(V_set))+5]);
     
     M_set = [];
     
     M_set = [-f_ele_end_b(3, ele_temp(1, 2)) f_ele_end_b(6, orgeletag_set(:, 1)==i)];
-    M_set = R*[zeros(1, numel(M_set)); M_set]/2/mag_factor + eles_table_plot;
+    M_set = mag_factor*R*[zeros(1, numel(M_set)); M_set]/1e7 + eles_table_plot;
     
     subplot(223)
     title('moment diagram')
     plot(M_set(1, :), M_set(2, :), 'LineWidth', 2, 'Color', 'blue')
-    xlim([min(min(M_set))-5, max(max(M_set))+5]);
-    ylim([min(min(M_set))-5, max(max(M_set))+5]);
     
     
     P_set = [];
     
     P_set = [-f_ele_end_b(1, ele_temp(1, 2)) f_ele_end_b(4, orgeletag_set(:, 1)==i)];
-    P_set = R*[zeros(1, numel(P_set)); P_set]/2/mag_factor + eles_table_plot;
+    P_set = mag_factor*R*[zeros(1, numel(P_set)); P_set]/1e7 + eles_table_plot;
     
     subplot(224)
     title('normal force diagram')
     plot(P_set(1, :), P_set(2, :), 'LineWidth', 2, 'Color', 'blue')
-    xlim([min(min(P_set))-5, max(max(P_set))+5]);
-    ylim([min(min(P_set))-5, max(max(P_set))+5]);
     
     
 end
 
-%xlim([min(min(nodes))-5, max(max(nodes))+5]);
-%ylim([min(min(nodes))-5, max(max(nodes))+5]);
+subplot(222)
+xlim([min(min(nodes))-10, max(max(nodes))+10]);
+ylim([min(min(nodes))-10, max(max(nodes))+10]);
+
+subplot(223)
+xlim([min(min(nodes))-10, max(max(nodes))+10]);
+ylim([min(min(nodes))-10, max(max(nodes))+10]);
+
+subplot(224)
+xlim([min(min(nodes))-10, max(max(nodes))+10]);
+ylim([min(min(nodes))-10, max(max(nodes))+10]);
 
 
     
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
