@@ -1,4 +1,5 @@
 # Structural Calculators
+"frame_DSM.m" and "truss_DSM.m" are two script files that implementing the direct stifness method using MATLAB codes. "truss.m" is an implementation of the method of joists to solve truss structure under nodal forces.
 ## How to use "frame_DSM.m"
 Open the file "frame_DSM.m" input:
 1. Input nodes coordinates in "nodes" (See left figure below line 4-9)
