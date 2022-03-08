@@ -1,9 +1,9 @@
 # Structural Calculators
 ## How to use "frame_DSM.m"
 Open the file "frame_DSM.m" input:
-1. Input nodes coordinates in "nodes"
-2. Input elements, from node a to node b in "eles"
-3. Input geometry properties, which is a vector that contains properties of each element
+1. Input nodes coordinates in "nodes" (See left figure below line 4-9)
+2. Input elements, from node a to node b in "eles" (See left figure below line 11-17)
+3. Modify the geometry properties (See left figure below line 22-35)
 4. Input support types, as instructed by the comments
 5. Input external nodal forces and element equivalent forecs
 6. Run
@@ -11,14 +11,19 @@ Open the file "frame_DSM.m" input:
 
 “resolution” relates to the level of finess of visualization. If you would like to check the element end forces, change "resolution" to 0.
 
-## Demostration on "Truss.m"
-![image](demo_problem.png=100x)
-![image](demo_problem_result.jpg=100x)
-![image](demo_problem_result_figure.jpg=100x)
-
-And "truss_DSM.m" can provide exactly the same result (but no visualization).
-
 ## Demostration on "frame_DSM.m"
-![image](demo_frame_config.png)
-![image](demo_frame_result.png)
-![image](demo_frame_fig.png)
+<p float="left">
+  <img src="demo_frame_config.png" width="250" />
+  <img src="demo_frame_result.png" width="250" />
+</p>
+<img src="demo_frame_fig.png" width="500">
+
+
+## Demostration on "Truss.m"
+<img src="demo_problem.png" width="500">
+<p float="left">
+  <img src="demo_problem_result.jpg" width="250" />
+  <img src="demo_problem_result_figure.jpg" width="300" />
+</p>
+
+"truss_DSM.m" can provide exactly the same result (but no visualization).
